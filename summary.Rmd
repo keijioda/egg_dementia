@@ -504,7 +504,7 @@ levels(ahs_medic_inc2$dairy_gram_ea_4) <- c("<30 g/d", "30-100 g/d", "100-<236 g
     * Smoking (never/ever)
     * Alcohol use (never/ever)
     * Sleep hours
-  * Comorbidity variables (yes/no) were derived from Medicare chronic condition data. Those who were diagnosed with the following conditions prior to dementia/Alzheimer's disease were flagged.
+  * Comorbidity variables (yes/no) were derived from Medicare chronic condition data. Those who were diagnosed with the following conditions prior to study enrollment were flagged.
     * Cancer: breast, colorectal, lung, prostate, endometrial
     * CVD: Acute MI, atrial fibrillation, congestive heart failure, ischemic heart disease, stroke/TIA
     * Hypertension or hyperlipidemia
