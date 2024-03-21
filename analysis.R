@@ -772,6 +772,15 @@ ahs_medic_inc2 <- ahs_medic_inc2 %>%
   mutate(meat_gram_ea_4 = cut(meat_gram_ea, breaks = c(-Inf, 0, 11, 32, Inf), right = TRUE), 
          fish_gram_ea_4 = cut(fish_gram_ea, breaks = c(-Inf, 0,  8.6, 17.2, Inf), right = TRUE))
 
+ahs_medic_inc2 %>% 
+  as_tibble() %>% 
+  select(meat_gram_ea_4, fish_gram_ea_4, eggs_gram_ea_4, dairy_gram_ea_4) %>% 
+  lapply(levels)
+
+levels(ahs_medic_inc2$meat_gram_ea_4)  <- c("None", "<11 g/d", "11-<32 g/d", "32+ g/d")
+levels(ahs_medic_inc2$fish_gram_ea_4)  <- c("None", "<8.6 g/d", "8.6-<17.2 g/d", "17.2+ g/d")
+levels(ahs_medic_inc2$eggs_gram_ea_4)  <- c("<3.6 g/d", "3.6-7.5 g/d", "7.5-<16 g/d", "16+ g/d")
+levels(ahs_medic_inc2$dairy_gram_ea_4) <- c("<30 g/d", "30-100 g/d", "100-<236 g/d", "236+ g/d")
 
 # Table 1 -----------------------------------------------------------------
 
@@ -805,7 +814,11 @@ tablevars <- c("agecat",
                "dairy_gram_ea_4"
                )
 
-out <- CreateTableOne(tablevars, strata = "ALZH_DEMEN_YN", data = ahs_medic_inc2, addOverall = TRUE)
+summary(ahs_medic_inc2$ALZH_DEMEN_YN)
+
+out <- ahs_medic_inc2 %>% 
+  mutate(ALZH_DEMEN_YN2 = fct_recode(ALZH_DEMEN_YN, "Non-case" = "No", "Case" = "Yes")) %>% 
+  CreateTableOne(tablevars, strata = "ALZH_DEMEN_YN2", data = ., addOverall = TRUE)
 print(out, showAllLevels = TRUE)
 
 ahs_medic_inc2  %>% 
@@ -859,6 +872,16 @@ mv_out  <- summary(mv_mod)
 mv_out2 <- cbind(mvHR = coef(mv_out)[, "exp(coef)"], exp(confint(mv_mod))) %>% round(2)
 cbind(out, mv_out2)
 
+# Model 1 Trend p-value
+mv_mod_tmp <- update(mv_mod, .~. - educyou2 + as.numeric(educyou))
+summary(mv_mod_tmp)
+mv_mod_tmp <- update(mv_mod, .~. - bmicat + as.numeric(bmicat))
+summary(mv_mod_tmp)
+mv_mod_tmp <- update(mv_mod, .~. - exercise + as.numeric(exercise))
+summary(mv_mod_tmp)
+mv_mod_tmp <- update(mv_mod, .~. - sleephrs2 + as.numeric(sleephrs))
+summary(mv_mod_tmp)
+
 # For models with food group (remove dietary pattern)
 vars <- c("bene_sex_F", "rti_race3", "marital", "educyou2", "bmicat", "exercise", "sleephrs2", "smokecat", "alccat",
           "como_depress", "como_disab", "como_diabetes", "como_cvd", "como_hthl", "como_resp", "como_kidney", "como_hypoth", "como_cancers",
@@ -879,3 +902,21 @@ anova(mv_mod2, update(mv_mod2, .~. - meat_gram_ea_4))
 anova(mv_mod2, update(mv_mod2, .~. - fish_gram_ea_4))
 anova(mv_mod2, update(mv_mod2, .~. - eggs_gram_ea_4))
 anova(mv_mod2, update(mv_mod2, .~. - dairy_gram_ea_4))
+
+# Trend p-value
+mv_mod4 <- update(mv_mod2, .~. - educyou2 + as.numeric(educyou))
+summary(mv_mod4)
+mv_mod4 <- update(mv_mod2, .~. - bmicat + as.numeric(bmicat))
+summary(mv_mod4)
+mv_mod4 <- update(mv_mod2, .~. - exercise + as.numeric(exercise))
+summary(mv_mod4)
+mv_mod4 <- update(mv_mod2, .~. - sleephrs2 + as.numeric(sleephrs))
+summary(mv_mod4)
+mv_mod4 <- update(mv_mod2, .~. - meat_gram_ea_4 + as.numeric(meat_gram_ea_4))
+summary(mv_mod4)
+mv_mod4 <- update(mv_mod2, .~. - fish_gram_ea_4 + as.numeric(fish_gram_ea_4))
+summary(mv_mod4)
+mv_mod4 <- update(mv_mod2, .~. - eggs_gram_ea_4 + as.numeric(eggs_gram_ea_4))
+summary(mv_mod4)
+mv_mod4 <- update(mv_mod2, .~. - dairy_gram_ea_4 + as.numeric(dairy_gram_ea_4))
+summary(mv_mod4)

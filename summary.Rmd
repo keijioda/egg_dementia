@@ -426,6 +426,11 @@ ahs_medic_inc2 <- ahs_medic_inc2 %>%
   mutate(meat_gram_ea_4 = cut(meat_gram_ea, breaks = c(-Inf, 0, 11, 32, Inf), right = TRUE), 
          fish_gram_ea_4 = cut(fish_gram_ea, breaks = c(-Inf, 0,  8.6, 17.2, Inf), right = TRUE))
 
+levels(ahs_medic_inc2$meat_gram_ea_4)  <- c("None", "<11 g/d", "11-<32 g/d", "32+ g/d")
+levels(ahs_medic_inc2$fish_gram_ea_4)  <- c("None", "<8.6 g/d", "8.6-<17.2 g/d", "17.2+ g/d")
+levels(ahs_medic_inc2$eggs_gram_ea_4)  <- c("<3.6 g/d", "3.6-7.5 g/d", "7.5-<16 g/d", "16+ g/d")
+levels(ahs_medic_inc2$dairy_gram_ea_4) <- c("<30 g/d", "30-100 g/d", "100-<236 g/d", "236+ g/d")
+
 ```
 
 ## Aim
@@ -455,11 +460,11 @@ ahs_medic_inc2 <- ahs_medic_inc2 %>%
   
 * After merging Medicare and AHS-2 data, there were n = 44,359 subjects.
 
-## Inclustion/exclusion criteria
+## Inclusion/exclusion criteria
 
 * Medicare beneficiaries who did not reach the age of 65 between 2008 and 2020 (e.g., younger beneficiaries with disabilities or end-stage renal disease) were excluded (n = 1545), resulting n = 42,814.
 
-* n = 1322 subjects with missing BMI or extreme BMI (<16 or >60), according to AHS questionnaire, were excluded (n = ), resulting n = 41,492.
+* n = 1322 subjects with missing BMI or extreme BMI (<16 or >60), according to AHS questionnaire, were excluded, resulting n = 41,492.
 
 * n = 1136 subjects with extreme calorie intake (<500 or >4500 kcal) were excluded, resulting n = 40,356.
 
@@ -476,13 +481,42 @@ ahs_medic_inc2 <- ahs_medic_inc2 %>%
 
 ## Dietary variables 
 
-* This section is to be completed
-* Adjusting for energy
-<!-- * For each ??, its dietary intake was energy-adjusted by the residual method, while partitioning zero intake ([Jaceldo-Siegl et al., 2011](https://www.ncbi.nlm.nih.gov/pmc/articles/PMC3433053/)). Due to its highly right-skewed distribution, non-zero intake was log-transformed before being regressed on the total energy intake. Residuals were added by the mean of log and then back-transformed to obtain energy-adjusted dietary intake. Energy-adjusted dietary intake was added with (unadjusted) supplement intake to form energy-adjuste total intake. -->
-* Food groups, divided into 4 intake levels
+* Gram intakes of 4 food groups (meat, fish, egg, and dairy) were calculated (gram/day) according to AHS-2 food frequency questionnaire. 
+
+* For each food group, its dietary intake was energy-adjusted by the residual method, while partitioning zero intake ([Jaceldo-Siegl et al., 2011](https://www.ncbi.nlm.nih.gov/pmc/articles/PMC3433053/)). Due to its highly right-skewed distribution, non-zero intake was log-transformed before being regressed on the total energy intake. Residuals were added by the mean of log and then back-transformed to obtain energy-adjusted dietary intake. Energy-adjusted dietary intake was added with (unadjusted) supplement intake to form energy-adjuste total intake.
+
+* Subjects were then divided into 4 intake levels. 
+  * For meat and fish, about 51% of subjects indicated zero intake and they were classified to a non-consumption group. The rest of the subjects were approximately equally allocated to 3 consumption groups according to their intake. 
+  * For egg and dairy, subjects were divided into 4 quartile groups.
+  * For cut-off values of the four food groups, please see the descriptive table below.
   
 ## Descriptive table
 
+* The descriptive table by case/non-case:
+  * Age, gender, and race (RTI race code, recoded into White/Black/Other) were derived from Medicare MBSF data.
+    * Age was calculated at the end of year 2020 (for the sake of comparison; some of the subjects may have died by then)
+  * Other demographic and lifestyle variables were derived from AHS-2 baseline questionnaire
+    * Marital status (married, never married, widowed/divorced)
+    * Education level (high school or less, some college, college graduate)
+    * Dietary pattern (5 levels: vegan, lacto-ovo, semi, pesco and non-vegetarians)
+    * BMI group
+    * Exercise (none, low, moderate, vigorous)
+    * Smoking (never/ever)
+    * Alcohol use (never/ever)
+    * Sleep hours
+  * Comorbidity variables (yes/no) were derived from Medicare chronic condition data. Those who were diagnosed with the following conditions prior to dementia/Alzheimer's disease were flagged.
+    * Cancer: breast, colorectal, lung, prostate, endometrial
+    * CVD: Acute MI, atrial fibrillation, congestive heart failure, ischemic heart disease, stroke/TIA
+    * Hypertension or hyperlipidemia
+    * Respiratory diseases: COPD, asthma
+    * Diabetes
+    * Chronic kidney diseases
+    * Hypothyroidism
+    * Depression
+    * Functional disabilities: Cataract, glaucoma, hip/pelvic fracture, osteoporosis, rheumatoid arthritis/osteoarthritis 
+
+* For those diagnosed with dementia/AD, the mean age at diagnosis was 83.2 years (median 84.0 years)
+    
 ```{r descriptive_stratified, echo = FALSE}
 # Variables to be included
 tablevars <- c("agecat", 
@@ -514,9 +548,23 @@ tablevars <- c("agecat",
                "dairy_gram_ea_4"
                )
 
-tablevars %>% 
-  CreateTableOne(strata = "ALZH_DEMEN_YN", data = ahs_medic_inc2, addOverall = TRUE) %>% 
+ahs_medic_inc2 %>% 
+  mutate(ALZH_DEMEN_YN2 = fct_recode(ALZH_DEMEN_YN, "Non-case" = "No", "Case" = "Yes")) %>% 
+  CreateTableOne(tablevars, strata = "ALZH_DEMEN_YN2", data = ., addOverall = TRUE) %>% 
   print(showAllLevels = TRUE) %>% 
-  kableone()  
+  kableone()
 ```
 
+## Cox models
+
+* To be completed
+* Cox model with attained age as the time scale
+  * Age at entry was calculated based on the return date of AHS-2 questionnaire
+  * Those who died during the follow-up were censored at the date of death verified in Medicare data
+  * Those who were diagnosed with dementia or Alzheimer's disease after 6 months following study enrollment were identified as incident cases and their age at diagnosis was calculated. 
+  * The mean follow-up years was 14.8 years (median 16.5 years)
+* Table XX:
+  * Unadjusted hazard ratio (HR) is shown in the first column of Table XX for each covariate
+  * Multivariable model 1 includes all covariates except for total energy intake (Unit: per 100 kcal/day) and 4 food group vairables
+  * In Multivariable model 2, dietary pattern was removed and all 4 food group variables were added, while also adjusting for total energy intake. 
+* Trend p-values were displayed for ordinal variables (education, BMI categories, exercise, sleep hours and food group intakes) in multivariable models.
