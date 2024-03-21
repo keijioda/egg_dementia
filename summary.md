@@ -117,7 +117,7 @@ Egg dementia study
     - Sleep hours
   - Comorbidity variables (yes/no) were derived from Medicare chronic
     condition data. Those who were diagnosed with the following
-    conditions prior to dementia/Alzheimer’s disease were flagged.
+    conditions prior to study enrollment were flagged.
     - Cancer: breast, colorectal, lung, prostate, endometrial
     - CVD: Acute MI, atrial fibrillation, congestive heart failure,
       ischemic heart disease, stroke/TIA
