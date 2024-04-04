@@ -557,8 +557,7 @@ ahs_medic_inc2 %>%
 
 ## Cox models
 
-* To be completed
-* Cox model with attained age as the time scale
+* To examine risk factors associated with incident dementia/AD, we employed the Cox proportional hazards model with attained age as the time scale
   * Age at entry was calculated based on the return date of AHS-2 questionnaire
   * Those who died during the follow-up were censored at the date of death verified in Medicare data
   * Those who were diagnosed with dementia or Alzheimer's disease after 6 months following study enrollment were identified as incident cases and their age at diagnosis was calculated. 
@@ -568,3 +567,5 @@ ahs_medic_inc2 %>%
   * Multivariable model 1 includes all covariates except for total energy intake (Unit: per 100 kcal/day) and 4 food group vairables
   * In Multivariable model 2, dietary pattern was removed and all 4 food group variables were added, while also adjusting for total energy intake. 
 * Trend p-values were displayed for ordinal variables (education, BMI categories, exercise, sleep hours and food group intakes) in multivariable models.
+* The proportional hazards assumption was assessed with visual inspection of plots of the scaled Schoenfeld residuals for each covariate. None of the covariates showed severe violation of the assumption.
+

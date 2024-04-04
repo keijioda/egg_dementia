@@ -213,8 +213,9 @@ Egg dementia study
 
 ## Cox models
 
-- To be completed
-- Cox model with attained age as the time scale
+- To examine risk factors associated with incident dementia/AD, we
+  employed the Cox proportional hazards model with attained age as the
+  time scale
   - Age at entry was calculated based on the return date of AHS-2
     questionnaire
   - Those who died during the follow-up were censored at the date of
@@ -234,3 +235,7 @@ Egg dementia study
 - Trend p-values were displayed for ordinal variables (education, BMI
   categories, exercise, sleep hours and food group intakes) in
   multivariable models.
+- The proportional hazards assumption was assessed with visual
+  inspection of plots of the scaled Schoenfeld residuals for each
+  covariate. None of the covariates showed severe violation of the
+  assumption.

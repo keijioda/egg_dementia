@@ -723,7 +723,31 @@ names(ahsdiet)
 
 # Food group variables
 # Energy-adjust with zero partition
-source("C:\\Users\\keiji\\Dropbox\\myfunc.R")
+# By default, variables are log-transformed (excluding zeros)
+kcal_adjust <- function(data, var, energy, log=TRUE){
+  if (missing(var))
+    stop("Need to specify variable for energy-adjustment.")
+  if (missing(energy))
+    stop("Need to specify energy intake.")
+  if (missing(data))
+    stop("Need to specify a data frame.")
+  df <- eval(substitute(data.frame(y = data$var, ea_y = data$var, kcal = data$energy)))
+  count_negative <- sum(df$y < 0, na.rm=TRUE)
+  if (count_negative > 0)
+    warning("There are negative values in variable.")
+  if(log) df$y[df$y > 0 & !is.na(df$y)] <- log(df$y[df$y > 0 & !is.na(df$y)])
+  mod <- lm(y ~ kcal, data=df[df$y != 0, ])
+  if(log){
+    ea <- exp(resid(mod) + mean(df$y[df$y != 0], na.rm=TRUE))
+    df$ea_y[!is.na(df$y) & df$y != 0] <- ea
+  }
+  else{
+    ea <- resid(mod) + mean(df$y[df$y != 0], na.rm=TRUE)
+    df$ea_y[!is.na(df$y) & df$y != 0] <- ea
+  }
+  return(df$ea_y)
+}
+
 ahs_medic_inc2$meat_gram_ea      <- kcal_adjust(meat_gram,  kcal, data = ahs_medic_inc2, log = TRUE)
 ahs_medic_inc2$fish_gram_ea      <- kcal_adjust(fish_gram,  kcal, data = ahs_medic_inc2, log = TRUE)
 ahs_medic_inc2$eggs_gram_ea      <- kcal_adjust(eggs_gram,  kcal, data = ahs_medic_inc2, log = TRUE)
@@ -920,3 +944,33 @@ mv_mod4 <- update(mv_mod2, .~. - eggs_gram_ea_4 + as.numeric(eggs_gram_ea_4))
 summary(mv_mod4)
 mv_mod4 <- update(mv_mod2, .~. - dairy_gram_ea_4 + as.numeric(dairy_gram_ea_4))
 summary(mv_mod4)
+
+# Checking PH assumption
+mv_mod_zph <- cox.zph(mv_mod, transform = "km", global = FALSE, terms = FALSE)
+mv_mod_zph
+
+# Variables violating PH assumptions
+plot.zph <- function(var,...){
+  plot(mv_mod_zph, var = var, resid = FALSE, col = c("red", "pink"), lwd = 2, cex.lab = 2, cex.axis = 2,...)
+  abline(h = 0, lty = 2)
+} 
+
+par(mfrow=c(2, 4), mar=c(c(5.1, 5.1, 4.1, 2.1)))
+  plot.zph("rti_race3Black",     ylim = c(-4, 4))
+  plot.zph("maritalDiv/Wid",     ylim = c(-4, 4))
+  plot.zph("educyou2HS or less", ylim = c(-4, 4))
+  plot.zph("bmicatObese",        ylim = c(-4, 4))
+  plot.zph("sleephrs2<= 5 hrs",  ylim = c(-4, 4))
+  plot.zph("sleephrs2>= 9 hrs",  ylim = c(-4, 4))
+  plot.zph("smokecatEver",       ylim = c(-4, 4))
+  plot.zph("alccatEver",         ylim = c(-4, 4))
+par(mfrow=c(1, 1))
+
+par(mfrow=c(2, 4), mar=c(c(5.1, 5.1, 4.1, 2.1)))
+  plot.zph("como_depressYes",    ylim = c(-4, 4))
+  plot.zph("como_diabetesYes",   ylim = c(-4, 4))
+  plot.zph("como_cvdYes",        ylim = c(-4, 4))
+  plot.zph("como_respYes",       ylim = c(-4, 4))
+  plot.zph("como_kidneyYes",     ylim = c(-4, 4))
+  plot.zph("como_cancersYes",    ylim = c(-4, 4))
+par(mfrow=c(1, 1))
