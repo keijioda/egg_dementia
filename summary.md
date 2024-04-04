@@ -239,3 +239,19 @@ Egg dementia study
   inspection of plots of the scaled Schoenfeld residuals for each
   covariate. None of the covariates showed severe violation of the
   assumption.
+
+## Additional analyses
+
+- Combine semi- and non-vegetarians into one group and make this as
+  reference
+
+- Run the following models:
+
+  - MV1 + egg (retain dietary groups)
+  - Separate meat into two food group variables, beef and poultry, while
+    excluding pork from the model
+  - Explore interactions between meat (as a whole) and egg intake
+
+- TO DO
+
+  - Get meat sub-group variables (both gram and kcal intake) from Lars?
