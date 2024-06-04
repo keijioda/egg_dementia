@@ -777,6 +777,10 @@ diet_plot(nutsseeds_gram_ea, "nuts/seeds")
 diet_plot(meat_gram_ea,      "meat")
 diet_plot(fish_gram_ea,      "fish")
 
+# Create quantile groups
+# Specify p for other percentile groups
+cutQ <- function(x, p=0:4/4, na.rm=FALSE) cut(x, quantile(x, p, na.rm=na.rm), include.lowest=TRUE)
+
 # Quartiles for egg, dairy and nuts/seeds
 ea_diet_vars <- c("eggs_gram_ea", "dairy_gram_ea", "nutsseeds_gram_ea")
 get_percentile <- function(var, data = ahs_medic_inc2) cutQ(data[[var]], na.rm = TRUE, p = 0:4/4)
@@ -859,14 +863,15 @@ sapply(ahs_medic_inc2[tablevars], function(x) sum(is.na(x)))
 # Cox models --------------------------------------------------------------
 
 # Indep vars (will be age-adjusted)
-vars <- c("bene_sex_F", "rti_race3", "marital", "educyou2", "vegstat2", "bmicat", "exercise", "sleephrs2", "smokecat", "alccat",
+vars <- c("bene_sex_F", "rti_race3", "marital", "educyou2", "vegstat3", "bmicat", "exercise", "sleephrs2", "smokecat", "alccat",
           "como_depress", "como_disab", "como_diabetes", "como_cvd", "como_hthl", "como_resp", "como_kidney", "como_hypoth", "como_cancers")
 
 ahs_medic_inc2 <- ahs_medic_inc2 %>% 
   mutate(bene_sex_F = relevel(bene_sex_F, ref="F"),
          bmicat     = relevel(bmicat, ref="Normal"),
          inc_demen  = ifelse(ALZH_DEMEN_YN == "Yes", 1, 0),
-         kcal100    = kcal / 100)
+         kcal100    = kcal / 100,
+         vegstat3   = fct_collapse(vegstat2, "Non-veg" = c("Non-veg", "Semi")))
 
 # Cox proportinal hazards model
 coxm <- function(var, dsn = ahs_medic_inc2){
@@ -888,13 +893,12 @@ rownames(out) <- unlist(mapply(replace_var, cox_out, varname = names(cox_out)))
 out
 
 # Multivariable Cox model
-mv_mod <- coxph(Surv(agein, ageout, inc_demen) ~ bene_sex_F + rti_race3 + marital + educyou2 + vegstat2 + 
+mv_mod <- coxph(Surv(agein, ageout, inc_demen) ~ bene_sex_F + rti_race3 + marital + educyou2 + vegstat3 + 
                   bmicat + exercise + sleephrs2 + smokecat + alccat + como_depress + como_disab + como_diabetes + 
                   como_cvd + como_hthl + como_resp + como_kidney + como_hypoth + como_cancers, data = ahs_medic_inc2, method = "efron")
 
 mv_out  <- summary(mv_mod)
 mv_out2 <- cbind(mvHR = coef(mv_out)[, "exp(coef)"], exp(confint(mv_mod))) %>% round(2)
-cbind(out, mv_out2)
 
 # Model 1 Trend p-value
 mv_mod_tmp <- update(mv_mod, .~. - educyou2 + as.numeric(educyou))
@@ -944,6 +948,19 @@ mv_mod4 <- update(mv_mod2, .~. - eggs_gram_ea_4 + as.numeric(eggs_gram_ea_4))
 summary(mv_mod4)
 mv_mod4 <- update(mv_mod2, .~. - dairy_gram_ea_4 + as.numeric(dairy_gram_ea_4))
 summary(mv_mod4)
+
+# Model with dietary pattern and egg
+mv_mod1a <- update(mv_mod, .~. + kcal100 + eggs_gram_ea_4)
+mv_out <- summary(mv_mod1a)
+mv_out2 <- cbind(mvHR = coef(mv_out)[, "exp(coef)"], exp(confint(mv_mod1a))) %>% round(2)
+
+# Model with meat x egg interaction
+mv_mod3 <- update(mv_mod2, .~. + meat_gram_ea_4 * eggs_gram_ea_4)
+mv_out3 <- summary(mv_mod3)
+mv_out3 <- cbind(mvHR = coef(mv_out3)[, "exp(coef)"], exp(confint(mv_mod3))) %>% round(2)
+
+# LR test for interaction
+anova(mv_mod2, mv_mod3)
 
 # Checking PH assumption
 mv_mod_zph <- cox.zph(mv_mod, transform = "km", global = FALSE, terms = FALSE)
