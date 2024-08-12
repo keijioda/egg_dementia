@@ -322,14 +322,16 @@ Egg dementia study
 ## Notes for additional analyses
 
 - Combine semi- and non-vegetarians into one group and make this as
-  reference
+  reference – Done.
 
 - Run the following models:
 
-  - MV1 + egg (retain dietary groups)
+  - MV1 + egg (retain dietary groups) – Done. HRs very similar to those
+    in Model 1 or 2.
   - Separate meat into two food group variables, beef and poultry, while
-    excluding pork from the model
-  - Explore interactions between meat (as a whole) and egg intake
+    excluding pork from the model – Still waiting for data from DS.
+  - Explore interactions between meat (as a whole) and egg intake – The
+    interaction term was not significant at all (p = 0.69).
 
 - TO DO
 
