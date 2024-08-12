@@ -860,6 +860,45 @@ ahs_medic_inc2  %>%
 sapply(ahs_medic_inc2[tablevars], function(x) sum(is.na(x)))
 
 
+# Table 1 by egg intake ---------------------------------------------------
+
+# Variables to be included
+tablevars <- c("ALZH_DEMEN_YN2",
+               "agecat", 
+               # "bene_age_at_end_2008", 
+               "bene_age_at_end_2020", 
+               "bene_sex_F", 
+               "rti_race3", 
+               "marital", 
+               "educyou", 
+               "vegstat", 
+               "bmicat", 
+               "bmi", 
+               "exercise", 
+               "sleephrs", 
+               "smokecat", 
+               "alccat", 
+               "como_depress",
+               "como_disab", 
+               "como_diabetes", 
+               "como_cvd", 
+               "como_hthl", 
+               "como_resp", 
+               "como_kidney", 
+               "como_hypoth", 
+               "como_cancers",
+               "meat_gram_ea_4",
+               "fish_gram_ea_4",
+               # "eggs_gram_ea_4",
+               "dairy_gram_ea_4"
+               )
+
+out <- ahs_medic_inc2 %>% 
+  mutate(ALZH_DEMEN_YN2 = fct_recode(ALZH_DEMEN_YN, "Non-case" = "No", "Case" = "Yes")) %>% 
+  CreateTableOne(tablevars, strata = "eggs_gram_ea_4", data = ., addOverall = TRUE)
+print(out, showAllLevels = TRUE)
+
+
 # Cox models --------------------------------------------------------------
 
 # Indep vars (will be age-adjusted)

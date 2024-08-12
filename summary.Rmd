@@ -554,6 +554,48 @@ ahs_medic_inc2 %>%
   print(showAllLevels = TRUE) %>% 
   kableone()
 ```
+  
+## Descriptive table by egg intake
+
+```{r descriptive_stratified_by_egg, echo = FALSE}
+
+# Variables to be included
+tablevars <- c("ALZH_DEMEN_YN2",
+               "agecat", 
+               # "bene_age_at_end_2008", 
+               "bene_age_at_end_2020", 
+               "bene_sex_F", 
+               "rti_race3", 
+               "marital", 
+               "educyou", 
+               "vegstat", 
+               "bmicat", 
+               "bmi", 
+               "exercise", 
+               "sleephrs", 
+               "smokecat", 
+               "alccat", 
+               "como_depress",
+               "como_disab", 
+               "como_diabetes", 
+               "como_cvd", 
+               "como_hthl", 
+               "como_resp", 
+               "como_kidney", 
+               "como_hypoth", 
+               "como_cancers",
+               "meat_gram_ea_4",
+               "fish_gram_ea_4",
+               # "eggs_gram_ea_4",
+               "dairy_gram_ea_4"
+               )
+
+ahs_medic_inc2 %>% 
+  mutate(ALZH_DEMEN_YN2 = fct_recode(ALZH_DEMEN_YN, "Non-case" = "No", "Case" = "Yes")) %>% 
+  CreateTableOne(tablevars, strata = "eggs_gram_ea_4", data = ., addOverall = TRUE) %>% 
+  print(showAllLevels = TRUE) %>% 
+  kableone()
+```
 
 ## Cox models
 
@@ -569,7 +611,7 @@ ahs_medic_inc2 %>%
 * Trend p-values were displayed for ordinal variables (education, BMI categories, exercise, sleep hours and food group intakes) in multivariable models.
 * The proportional hazards assumption was assessed with visual inspection of plots of the scaled Schoenfeld residuals for each covariate. None of the covariates showed severe violation of the assumption.
 
-## Additional analyses
+## Notes for additional analyses
 
 * Combine semi- and non-vegetarians into one group and make this as reference
 
