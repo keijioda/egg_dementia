@@ -613,12 +613,12 @@ ahs_medic_inc2 %>%
 
 ## Notes for additional analyses
 
-* Combine semi- and non-vegetarians into one group and make this as reference
+* Combine semi- and non-vegetarians into one group and make this as reference -- Done.
 
 * Run the following models:
-  * MV1 + egg (retain dietary groups)
-  * Separate meat into two food group variables, beef and poultry, while excluding pork from the model
-  * Explore interactions between meat (as a whole) and egg intake
+  * MV1 + egg (retain dietary groups) -- Done. HRs very similar to those in Model 1 or 2.
+  * Separate meat into two food group variables, beef and poultry, while excluding pork from the model -- Still waiting for data from DS.
+  * Explore interactions between meat (as a whole) and egg intake -- The interaction term was not significant at all (p = 0.69).
 
 * TO DO
   * Get meat sub-group variables (both gram and kcal intake) from Lars?
