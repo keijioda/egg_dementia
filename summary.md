@@ -336,3 +336,12 @@ Egg dementia study
 - TO DO
 
   - Get meat sub-group variables (both gram and kcal intake) from Lars?
+
+- Concerns:
+
+  - RTI Race: what to do with others? Exclude them?
+  - Egg eaters among vegans? – misclassification
+  - Definition of physical activity: Look for Vichuda’s paper
+  - Separate hypertension and hyperlipidemia?
+  - Include anemia as a comorbidity variable?
+  - Semi-veg: exclude them entirely, or keep it combined with non-veg?
