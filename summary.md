@@ -339,7 +339,9 @@ Egg dementia study
 
 - Concerns:
 
-  - RTI Race: what to do with others? Exclude them?
+  - RTI Race – see the [definition of RTI
+    race](https://resdac.org/cms-data/variables/research-triangle-institute-rti-race-code):
+    what to do with others? Exclude them?
   - Egg eaters among vegans? – misclassification
   - Definition of physical activity: Look for Vichuda’s paper
   - Separate hypertension and hyperlipidemia?
