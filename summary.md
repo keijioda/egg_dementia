@@ -336,14 +336,39 @@ Egg dementia study
 - TO DO
 
   - Get meat sub-group variables (both gram and kcal intake) from Lars?
+    – see below
+  - Incorporate VB12, omega-3, and folate from lupus data
+  - Need to rewrite datasets section
 
 - Concerns:
 
-  - RTI Race – see the [definition of RTI
+  - ~~RTI Race – see the [definition of RTI
     race](https://resdac.org/cms-data/variables/research-triangle-institute-rti-race-code):
-    what to do with others? Exclude them?
+    what to do with others? Exclude them?~~
   - Egg eaters among vegans? – misclassification
   - Definition of physical activity: Look for Vichuda’s paper
-  - Separate hypertension and hyperlipidemia?
-  - Include anemia as a comorbidity variable?
-  - Semi-veg: exclude them entirely, or keep it combined with non-veg?
+  - Separate hypertension and hyperlipidemia – Done
+  - Include anemia as a comorbidity variable – Done
+  - ~~Semi-veg: exclude them entirely, or keep it combined with
+    non-veg?~~
+
+- Plans
+
+  - Two papers:
+    - Egg intake and dementia (1st paper)
+    - Dietary pattern and dementia (2nd paper)
+  - For the first paper;
+    - Need other food groups: vegetables and fruits – get data from GF
+      (along with meat as food group)
+    - Need nutrient variables: Carotenoids (LYCO, LUTE, LZ, ZEA)? – JO
+      to think about
+    - Crosstab b/w egg and meat intake
+    - Mean/percentiles by egg intake group
+    - Re-label egg intake groups
+    - Model with and without comobidity
+      - Model 1a: Demographics and lifestyle + Egg
+      - Model 1b: Add comorbidity
+      - Model 2a: Model 1a + other food groups
+      - Model 2b: Model 1b + other food groups
+  - For the second paper:
+    - Keep semi-veg together with non-veg for now
