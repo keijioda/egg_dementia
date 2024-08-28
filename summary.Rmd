@@ -200,10 +200,15 @@ ahsdiet0 <- read.csv("./Data/MEDC_DMENT-FULL-20191008-0.csv", header = TRUE)
 # N = 4498 obs, 105 variables
 ahsdiet_ex <- read.csv("./Data/MEDC_DMENT-FULL-EXCLUDED-20191008-0.csv", header = TRUE)
 
-# Concatenate two dfs
+# Concatenate two dfs; N = 95,597
 ahsdiet <- ahsdiet0 %>% bind_rows(ahsdiet_ex)
 names(ahsdiet) <- tolower(names(ahsdiet))
 ahsdiet$bmi <- NULL
+
+# Remove those with "cannot use diet"
+# Yields N = 95,344
+ahsdiet <- ahsdiet %>% 
+  filter(x_cannotusediet == 0)
 
 # Merge AHS data with Medicare --------------------------------------------
 
@@ -217,35 +222,30 @@ cc_last_seen <- all_cc_long %>%
   slice(n())
 
 # Merge AHS data with Medicare
-# Results in n = 44,384 subjects
+# Results in n = 44,159 subjects
 ahs_medic <- msbf_last_seen %>% 
   inner_join(cc_last_seen %>% select(-BENE_ENROLLMT_REF_YR), by = "BENE_ID") %>%
   inner_join(ahs_dup_removed %>% 
                rename(BENE_ID = Bene_ID) %>% 
                mutate(analysisid = parse_number(AnalysisID)), by = "BENE_ID") %>% 
   inner_join(ahsdata, by = "analysisid") %>% 
-  left_join(ahsdiet, by = "analysisid") %>% 
+  # left_join(ahsdiet, by = "analysisid") %>% 
+  inner_join(ahsdiet, by = "analysisid") %>% 
   ungroup()
-
 
 # Apply inclusion/exclusion criteria --------------------------------------
 
-# Remove if AGE_AT_END_REF_YR < 65 (n = 1545)
-# Results in n = 42,839
+# Remove if AGE_AT_END_REF_YR < 65 (n = 1538)
+# Results in n = 42,621
 ahs_medic <- ahs_medic %>% 
   filter(AGE_AT_END_REF_YR >= 65)
 
-# Remove if qreturndate is missing -- 25 subjects
-# Results in n = 42,814 subjects
-ahs_medic <- ahs_medic %>% 
-  filter(!is.na(qreturndate))
-
-# Remove if BMI is missing (n = 1174) or extreme (n = 148)
+# Remove if BMI is missing (n = 1157) or extreme (n = 147)
 # Resuts in n = 41,492
 ahs_medic <- ahs_medic %>% 
   filter(bmi >= 16, bmi <= 60)
 
-# Exclude missing kcal/diet (n = 97) or extreme kcal intake (n = 1039)
+# Exclude extreme kcal intake (n = 1032)
 # Results in n = 40,356
 ahs_medic <- ahs_medic %>% 
   filter(kcal > 500 & kcal < 4500)
@@ -270,7 +270,7 @@ prev_cases <- alz_diag_date %>%
   select(BENE_ID, analysisid, ALZH_DEMEN_YN, qreturndate, ALZH_DEMEN_EVER, DateDiff_days, DateDiff_months, DateDiff_years)
 
 # Exclude prevalent cases
-# Yields n = 39,968 subjects
+# Yields n = 39,897 subjects
 ahs_medic_inc <- ahs_medic %>% 
   anti_join(prev_cases, by = "analysisid") %>% 
   mutate(BENE_BIRTH_DT = ymd(BENE_BIRTH_DT),
@@ -332,7 +332,7 @@ ahs_medic_inc2 <- ahs_medic_inc2 %>%
 dzvars <- c("ami", "atrial_fib", "cataract", "chronickidney", "copd", "chf", "diabetes", "glaucoma",
             "hip_fracture", "ischemicheart", "depression", "osteoporosis", "ra_oa", "stroke_tia", 
             "cancer_breast", "cancer_colorectal", "cancer_prostate", "cancer_lung", "cancer_endometrial",
-            "asthma", "hyperl", "hypert", "hypoth")
+            "asthma", "hyperl", "hypert", "hypoth", "anemia")
 dzvars <- paste0(toupper(dzvars), "_EVER")
 
 # Convert all comodidity ever variables to date
@@ -356,6 +356,9 @@ dzdf <- dzdf %>%
          como_diabetes = DIABETES_EVER_YN,
          como_kidney   = CHRONICKIDNEY_EVER_YN,
          como_hypoth   = HYPOTH_EVER_YN,
+         como_anemia   = ANEMIA_EVER_YN,
+         como_hypert   = HYPERT_EVER_YN,
+         como_hyperl   = HYPERL_EVER_YN,
          como_cancers  = ifelse(rowSums(.[grep("CANCER_", names(.))]) > 0, 1, 0),
          como_cvd      = ifelse(rowSums(.[grep("AMI|ATRIAL|CHF|ISCHEMIC|STROKE", names(.))]) > 0, 1, 0),
          como_disab    = ifelse(rowSums(.[grep("CATARACT|GLAU|HIP|OSTEO|RA_OA", names(.))]) > 0, 1, 0),
@@ -382,8 +385,11 @@ modelvars <- c("bene_age_at_end_2020",
                "como_disab", 
                "como_diabetes", 
                "como_cvd", 
-               "como_hthl", 
+               # "como_hthl", 
+               "como_hypert", 
+               "como_hyperl", 
                "como_resp", 
+               "como_anemia", 
                "como_kidney", 
                "como_hypoth", 
                "como_cancers",
@@ -394,7 +400,7 @@ modelvars <- c("bene_age_at_end_2020",
 )
 
 # After excluding missing on covariates
-# there are 36,549 subjects
+# there are 36,500 subjects
 complete_cases <- ahs_medic_inc2 %>% 
   select(analysisid, all_of(modelvars)) %>% 
   filter(complete.cases(.)) %>% 
@@ -454,30 +460,30 @@ levels(ahs_medic_inc2$dairy_gram_ea_4) <- c("<30 g/d", "30-100 g/d", "100-<236 g
     * Gender/DOB mismatch with AHS-2 data
     * Dupulicate beneficiary IDs and SSNs
 
-* AHS-2, n = 96,144
-  * Baseline data
-  * Dietary data
+* AHS-2
+  * Baseline data: n = 96,144
+  * Dietary data: n = 95,344
   
-* After merging Medicare and AHS-2 data, there were n = 44,359 subjects.
+* After merging Medicare and AHS-2 data, there were n = 44,159 subjects.
 
 ## Inclusion/exclusion criteria
 
-* Medicare beneficiaries who did not reach the age of 65 between 2008 and 2020 (e.g., younger beneficiaries with disabilities or end-stage renal disease) were excluded (n = 1545), resulting n = 42,814.
+* Medicare beneficiaries who did not reach the age of 65 between 2008 and 2020 (e.g., younger beneficiaries with disabilities or end-stage renal disease) were excluded (n = 1538), resulting n = 42,621.
 
-* n = 1322 subjects with missing BMI or extreme BMI (<16 or >60), according to AHS questionnaire, were excluded, resulting n = 41,492.
+* n = 1304 subjects with missing BMI or extreme BMI (<16 or >60), according to AHS questionnaire, were excluded, resulting n = 41,317.
 
-* n = 1136 subjects with extreme calorie intake (<500 or >4500 kcal) were excluded, resulting n = 40,356.
+* n = 1032 subjects with extreme calorie intake (<500 or >4500 kcal) were excluded, resulting n = 40,285.
 
 * Prevalent cases of dementia and/or Alzheimer's disease
   * If the first diagnosis was made before AHS-2 enrollment or within 6 months after the enrollment, consider it as a prevalent case
-  * n = 388 such prevalent cases were excluded, resulting n = 39,968 subjects
+  * n = 388 such prevalent cases were excluded, resulting n = 39,897 subjects
   
 * Unverified dates of deaths
   * Medicare data include a variable (`VALID_DEATH_DT_SW`) indicating whether a beneficiary's day of death has been verified by the Social Security Administration or the Railroad Retirement Board.
-  * There were 21 unverified death dates. Excluding these resulted n = 39,947.
+  * There were 21 unverified death dates. Excluding these resulted n = 39,876.
 
 * Missing values in covariates
-  * There were n = 3398 subjects who has at least one missing value on covariates (such as marital status, education, exercise level, sleep hours, smoking and alcohol use, all of them come from AHS questionnaire). These subjects were excluded, resulting in n = 36,549.
+  * There were n = 3376 subjects who has at least one missing value on covariates (such as marital status, education, exercise level, sleep hours, smoking and alcohol use, all of them come from AHS questionnaire). These subjects were excluded, resulting in n = 36,500.
 
 ## Dietary variables 
 
@@ -489,7 +495,69 @@ levels(ahs_medic_inc2$dairy_gram_ea_4) <- c("<30 g/d", "30-100 g/d", "100-<236 g
   * For meat and fish, about 51% of subjects indicated zero intake and they were classified to a non-consumption group. The rest of the subjects were approximately equally allocated to 3 consumption groups according to their intake. 
   * For egg and dairy, subjects were divided into 4 quartile groups.
   * For cut-off values of the four food groups, please see the descriptive table below.
-  
+
+* Mean and 25th, 50th, 75th percentiles of gram intake by intake group are shown below:
+
+```{r diet_vars, echo = FALSE}
+# Mean and percentiles by egg intake group
+ahs_medic_inc2 %>% 
+  group_by(meat_gram_ea_4) %>% 
+  summarize(n    = n(),
+            pct  = n() / nrow(ahs_medic_inc2) * 100,
+            mean = mean(meat_gram_ea),
+            p1   = quantile(meat_gram_ea, probs= 0.25),
+            p2   = quantile(meat_gram_ea, probs= 0.5),
+            p3   = quantile(meat_gram_ea, probs= 0.75)) %>% 
+  knitr::kable(digits = 2)
+
+ahs_medic_inc2 %>% 
+  group_by(fish_gram_ea_4) %>% 
+  summarize(n    = n(),
+            pct  = n() / nrow(ahs_medic_inc2) * 100,
+            mean = mean(fish_gram_ea),
+            p1   = quantile(fish_gram_ea, probs= 0.25),
+            p2   = quantile(fish_gram_ea, probs= 0.5),
+            p3   = quantile(fish_gram_ea, probs= 0.75)) %>% 
+  knitr::kable(digits = 2)
+
+ahs_medic_inc2 %>% 
+  group_by(eggs_gram_ea_4) %>% 
+  summarize(n    = n(),
+            pct  = n() / nrow(ahs_medic_inc2) * 100,
+            mean = mean(eggs_gram_ea),
+            p1   = quantile(eggs_gram_ea, probs= 0.25),
+            p2   = quantile(eggs_gram_ea, probs= 0.5),
+            p3   = quantile(eggs_gram_ea, probs= 0.75)) %>% 
+  knitr::kable(digits = 2)
+
+ahs_medic_inc2 %>% 
+  group_by(dairy_gram_ea_4) %>% 
+  summarize(n    = n(),
+            pct  = n() / nrow(ahs_medic_inc2) * 100,
+            mean = mean(dairy_gram_ea),
+            p1   = quantile(dairy_gram_ea, probs= 0.25),
+            p2   = quantile(dairy_gram_ea, probs= 0.5),
+            p3   = quantile(dairy_gram_ea, probs= 0.75)) %>% 
+  knitr::kable(digits = 2)
+```
+
+* For egg intake and meat intake, a crosstab was produced:
+  * The first table was stratified by meat intake (% of egg intake within each meat level)
+  * The second table was stratified by egg intake (% of meat intake within each egg level)
+
+```{r egg_meat_crosstab, echo = FALSE}
+# egg and meat intake, 4x4 table
+ahs_medic_inc2 %>% 
+  CreateTableOne("eggs_gram_ea_4", strata = "meat_gram_ea_4", data = .) %>% 
+  print(showAllLevels = TRUE) %>% 
+  kableone()
+
+ahs_medic_inc2 %>% 
+  CreateTableOne("meat_gram_ea_4", strata = "eggs_gram_ea_4", data = .) %>% 
+  print(showAllLevels = TRUE) %>% 
+  kableone()
+```
+
 ## Descriptive table
 
 * The descriptive table by case/non-case:
@@ -507,8 +575,10 @@ levels(ahs_medic_inc2$dairy_gram_ea_4) <- c("<30 g/d", "30-100 g/d", "100-<236 g
   * Comorbidity variables (yes/no) were derived from Medicare chronic condition data. Those who were diagnosed with the following conditions prior to study enrollment were flagged.
     * Cancer: breast, colorectal, lung, prostate, endometrial
     * CVD: Acute MI, atrial fibrillation, congestive heart failure, ischemic heart disease, stroke/TIA
-    * Hypertension or hyperlipidemia
+    * Hypertension
+    * hyperlipidemia
     * Respiratory diseases: COPD, asthma
+    * Anemia
     * Diabetes
     * Chronic kidney diseases
     * Hypothyroidism
@@ -537,8 +607,11 @@ tablevars <- c("agecat",
                "como_disab", 
                "como_diabetes", 
                "como_cvd", 
-               "como_hthl", 
+               # "como_hthl", 
+               "como_hypert", 
+               "como_hyperl", 
                "como_resp", 
+               "como_anemia", 
                "como_kidney", 
                "como_hypoth", 
                "como_cancers",
@@ -579,8 +652,11 @@ tablevars <- c("ALZH_DEMEN_YN2",
                "como_disab", 
                "como_diabetes", 
                "como_cvd", 
-               "como_hthl", 
+               # "como_hthl", 
+               "como_hypert", 
+               "como_hyperl", 
                "como_resp", 
+               "como_anemia", 
                "como_kidney", 
                "como_hypoth", 
                "como_cancers",
@@ -606,8 +682,8 @@ ahs_medic_inc2 %>%
   * The mean follow-up years was 14.8 years (median 16.5 years)
 * Table XX:
   * Unadjusted hazard ratio (HR) is shown in the first column of Table XX for each covariate
-  * Multivariable model 1 includes all covariates except for total energy intake (Unit: per 100 kcal/day) and 4 food group vairables
-  * In Multivariable model 2, dietary pattern was removed and all 4 food group variables were added, while also adjusting for total energy intake. 
+  * ~~Multivariable model 1 includes all covariates except for total energy intake (Unit: per 100 kcal/day) and 4 food group vairables~~
+  * ~~In Multivariable model 2, dietary pattern was removed and all 4 food group variables were added, while also adjusting for total energy intake.~~ 
 * Trend p-values were displayed for ordinal variables (education, BMI categories, exercise, sleep hours and food group intakes) in multivariable models.
 * The proportional hazards assumption was assessed with visual inspection of plots of the scaled Schoenfeld residuals for each covariate. None of the covariates showed severe violation of the assumption.
 

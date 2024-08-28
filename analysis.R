@@ -1,6 +1,6 @@
 
 # Required libraries
-pacs <- c("tidyverse", "readxl", "lubridate", "tableone", "gridExtra", "survival")
+pacs <- c("tidyverse", "readxl", "lubridate", "tableone", "gridExtra", "survival", "haven")
 sapply(pacs, require, character.only = TRUE)
 
 
@@ -422,10 +422,98 @@ dim(ahsdiet0)
 ahsdiet_ex <- read.csv("./Data/MEDC_DMENT-FULL-EXCLUDED-20191008-0.csv", header = TRUE)
 dim(ahsdiet_ex)
 
-# Concatenate two dfs
+# Concatenate two dfs; N = 95,597
 ahsdiet <- ahsdiet0 %>% bind_rows(ahsdiet_ex)
 names(ahsdiet) <- tolower(names(ahsdiet))
 ahsdiet$bmi <- NULL
+nrow(ahsdiet)
+
+# Cannot use diet variable: n = 253
+ahsdiet %>% 
+  select(x_cannotusediet) %>% 
+  table()
+
+# Remove those with "cannot use diet"
+# Yields N = 95,344
+ahsdiet <- ahsdiet %>% 
+  filter(x_cannotusediet == 0)
+nrow(ahsdiet)
+
+ahsdata %>% 
+  semi_join(ahsdiet, by = "analysisid") %>% 
+  nrow()
+
+# Additional AHS-2 dietary data -------------------------------------------
+# Meat group
+
+# n = 88,017
+# temp <- read_sas("./Data/jisoo.sas7bdat")
+# names(temp)
+
+# Check
+# names(temp) %>% 
+#   grep("f$", ., value = TRUE) %>% 
+#   lapply(\(x) temp %>% group_by_at(x) %>% tally())
+
+# names(temp) %>% 
+#   grep("a$", ., value = TRUE) %>% 
+#   lapply(\(x) temp %>% group_by_at(x) %>% tally())
+
+# Convert freq and amnt
+# freq_vars <- names(temp) %>% grep("f$", ., value = TRUE)
+
+# recode_freq <- function(x) {
+#   recode(x,
+#          `1` = 0, 
+#          `2` = 2/30,
+#          `3` = 1/7,
+#          `4` = 3/7,
+#          `5` = 5.5/7,
+#          `6` = 1,
+#          `7` = 2.5)
+# }
+# 
+# amnt_vars <- names(temp) %>% grep("a$", ., value = TRUE)
+# 
+# recode_amnt <- function(x) {
+#   recode(x,
+#          `1` = 0.5, 
+#          `2` = 1,
+#          `3` = 1.5,
+#          .missing = 0)
+# }
+# 
+# ahs_meat <- temp %>%
+#   mutate(across(freq_vars, recode_freq)) %>% 
+#   mutate(across(amnt_vars, recode_amnt)) %>% 
+#   mutate(beefham_gram = beefhamf * beefhama * beefhamfG,
+#          beefpro_gram = beefprof * beefproa * beefprofG,
+#          lamb_gram    = lambf    * lamba    * lambfG,
+#          poultry_gram = poultryf * poultrya * poultryfG,
+#          poulpro_gram = poulprof * poulproa * poulprofG,
+#          pork_gram    = porkf    * porka    * porkfG,
+#          beef_gram    = beefham_gram + beefpro_gram,
+#          chicken_gram = poultry_gram + poulpro_gram) %>% 
+#   select(analysisid, beef_gram, chicken_gram, pork_gram, lamb_gram)
+
+
+# Import lupus data for omega-3 -------------------------------------------
+
+# Read data: n = 93,467 and 111 variables
+# filepath <- "./data/lupus-initial-dataset-v1-2022-04-25.csv"
+# lupus0  <- read_csv(filepath)
+# dim(lupus0)
+# names(lupus0)
+
+# Omega-3 variables
+# omega3 <- lupus0 %>% 
+#   select(analysisid, 
+#          p183diet, p184diet, p205diet, p225diet, p226diet,
+#          p183supp, p184supp, p205supp, p225supp, p226supp)
+
+# Merge with ahsdiet: n = 93,318
+# ahsdiet2 <- ahsdiet %>% 
+#   inner_join(omega3, by = "analysisid")
 
 # Merge AHS data with Medicare --------------------------------------------
 
@@ -439,29 +527,23 @@ cc_last_seen <- all_cc_long %>%
   slice(n())
 
 # Merge AHS data with Medicare
-# Results in n = 44,384 subjects
+# Results in n = 44,159 subjects
 ahs_medic <- msbf_last_seen %>% 
   inner_join(cc_last_seen %>% select(-BENE_ENROLLMT_REF_YR), by = "BENE_ID") %>%
   inner_join(ahs_dup_removed %>% 
                rename(BENE_ID = Bene_ID) %>% 
                mutate(analysisid = parse_number(AnalysisID)), by = "BENE_ID") %>% 
   inner_join(ahsdata, by = "analysisid") %>% 
-  left_join(ahsdiet, by = "analysisid") %>% 
+  # left_join(ahsdiet, by = "analysisid") %>% 
+  inner_join(ahsdiet, by = "analysisid") %>% 
   ungroup()
 
+nrow(ahs_medic)
 
 # Apply inclusion/exclusion criteria --------------------------------------
 
-# Remove if qreturndate is missing -- 25 subjects
-ahs_medic %>%
-  summarize(n = sum(is.na(qreturndate)))
-
-# Results in n = 44,359 subjects
-ahs_medic <- ahs_medic %>% 
-  filter(!is.na(qreturndate))
-
-# Remove if AGE_AT_END_REF_YR < 65 (n = 1545)
-# Results in n = 42,814
+# Remove if AGE_AT_END_REF_YR < 65 (n = 1538)
+# Results in n = 42,621
 ahs_medic %>% 
   filter(AGE_AT_END_REF_YR < 65) %>% 
   nrow()
@@ -476,7 +558,7 @@ ahs_medic %>%
 ahs_medic <- ahs_medic %>% 
   filter(AGE_AT_END_REF_YR >= 65)
 
-# Remove if BMI is missing (n = 1174) or extreme (n = 148)
+# Remove if BMI is missing (n = 1157) or extreme (n = 147)
 # Resuts in n = 41,492
 ahs_medic %>% filter(is.na(bmi)) %>% tally()
 ahs_medic %>% filter(bmi < 16 | bmi > 60) %>% tally()
@@ -484,7 +566,7 @@ ahs_medic %>% filter(bmi < 16 | bmi > 60 | is.na(bmi)) %>% tally()
 ahs_medic <- ahs_medic %>% 
   filter(bmi >= 16, bmi <= 60)
 
-# Exclude missing kcal/diet (n = 97) or extreme kcal intake (n = 1039)
+# Exclude extreme kcal intake (n = 1032)
 # Results in n = 40,356
 ahs_medic %>% filter(is.na(kcal)) %>% tally()
 ahs_medic %>% filter(!(kcal > 500 & kcal < 4500)) %>% tally()
@@ -496,7 +578,7 @@ ahs_medic <- ahs_medic %>%
   mutate(ALZH_DEMEN_YN = ifelse(is.na(ALZH_DEMEN_EVER) & is.na(ALZH_EVER), 0, 1),
          ALZH_DEMEN_YN = factor(ALZH_DEMEN_YN, label = c("No", "Yes")))  
 
-# There are 7373 alzheimer/dementia cases (18.3%)
+# There are 7348 alzheimer/dementia cases (18.2%)
 ahs_medic %>%
   group_by(ALZH_DEMEN_YN) %>% 
   tally() %>% 
@@ -537,7 +619,7 @@ prev_cases <- alz_diag_date %>%
 prev_cases
 
 # Exclude prevalent cases
-# Yields n = 39,968 subjects
+# Yields n = 39,897 subjects
 ahs_medic_inc <- ahs_medic %>% 
   anti_join(prev_cases, by = "analysisid") %>% 
   mutate(BENE_BIRTH_DT = ymd(BENE_BIRTH_DT),
@@ -546,7 +628,7 @@ ahs_medic_inc <- ahs_medic %>%
 
 nrow(ahs_medic_inc)
 
-# Now we have 6985 incident cases (17.5%) out of 39,968 subjects
+# Now we have 6960 incident cases (17.4%) out of 39,897 subjects
 ahs_medic_inc %>% 
   group_by(ALZH_DEMEN_YN) %>% 
   tally() %>% 
@@ -639,7 +721,7 @@ ahs_medic_inc2 <- ahs_medic_inc2 %>%
 dzvars <- c("ami", "atrial_fib", "cataract", "chronickidney", "copd", "chf", "diabetes", "glaucoma",
             "hip_fracture", "ischemicheart", "depression", "osteoporosis", "ra_oa", "stroke_tia", 
             "cancer_breast", "cancer_colorectal", "cancer_prostate", "cancer_lung", "cancer_endometrial",
-            "asthma", "hyperl", "hypert", "hypoth")
+            "asthma", "hyperl", "hypert", "hypoth", "anemia")
 dzvars <- paste0(toupper(dzvars), "_EVER")
 
 # Convert all comodidity ever variables to date
@@ -663,6 +745,9 @@ dzdf <- dzdf %>%
          como_diabetes = DIABETES_EVER_YN,
          como_kidney   = CHRONICKIDNEY_EVER_YN,
          como_hypoth   = HYPOTH_EVER_YN,
+         como_anemia   = ANEMIA_EVER_YN,
+         como_hypert   = HYPERT_EVER_YN,
+         como_hyperl   = HYPERL_EVER_YN,
          como_cancers  = ifelse(rowSums(.[grep("CANCER_", names(.))]) > 0, 1, 0),
          como_cvd      = ifelse(rowSums(.[grep("AMI|ATRIAL|CHF|ISCHEMIC|STROKE", names(.))]) > 0, 1, 0),
          como_disab    = ifelse(rowSums(.[grep("CATARACT|GLAU|HIP|OSTEO|RA_OA", names(.))]) > 0, 1, 0),
@@ -689,8 +774,11 @@ modelvars <- c("bene_age_at_end_2020",
                "como_disab", 
                "como_diabetes", 
                "como_cvd", 
-               "como_hthl", 
+               # "como_hthl", 
+               "como_hypert", 
+               "como_hyperl", 
                "como_resp", 
+               "como_anemia", 
                "como_kidney", 
                "como_hypoth", 
                "como_cancers",
@@ -705,7 +793,7 @@ ahs_medic_inc2 %>%
   sapply(\(x) sum(is.na(x)))
 
 # After excluding missing on covariates
-# there are 36,549 subjects
+# there are 36,500 subjects
 complete_cases <- ahs_medic_inc2 %>% 
   select(analysisid, all_of(modelvars)) %>% 
   filter(complete.cases(.)) %>% 
@@ -753,6 +841,25 @@ ahs_medic_inc2$fish_gram_ea      <- kcal_adjust(fish_gram,  kcal, data = ahs_med
 ahs_medic_inc2$eggs_gram_ea      <- kcal_adjust(eggs_gram,  kcal, data = ahs_medic_inc2, log = TRUE)
 ahs_medic_inc2$dairy_gram_ea     <- kcal_adjust(dairy_gram, kcal, data = ahs_medic_inc2, log = TRUE)
 ahs_medic_inc2$nutsseeds_gram_ea <- kcal_adjust(nutsseeds_gram, kcal, data = ahs_medic_inc2, log = TRUE)
+
+# Need to add vb12, folate, and omega-3
+# kcal-Adjust vb12diet, foldiet, p183diet, p184diet, p205diet, p225diet, p226 diet
+# and add supp intake
+# ahs_medic_inc2$vb12diet_ea <- kcal_adjust(vb12diet,  kcal, data = ahs_medic_inc2, log = TRUE)
+# ahs_medic_inc2$foldiet_ea  <- kcal_adjust(foldiet,   kcal, data = ahs_medic_inc2, log = TRUE)
+# ahs_medic_inc2$p183diet_ea <- kcal_adjust(p183diet,  kcal, data = ahs_medic_inc2, log = TRUE)
+# ahs_medic_inc2$p184diet_ea <- kcal_adjust(p184diet,  kcal, data = ahs_medic_inc2, log = TRUE)
+# ahs_medic_inc2$p205diet_ea <- kcal_adjust(p205diet,  kcal, data = ahs_medic_inc2, log = TRUE)
+# ahs_medic_inc2$p225diet_ea <- kcal_adjust(p225diet,  kcal, data = ahs_medic_inc2, log = TRUE)
+# ahs_medic_inc2$p226diet_ea <- kcal_adjust(p226diet,  kcal, data = ahs_medic_inc2, log = TRUE)
+# 
+# ahs_medic_inc2$vb12_ea <- sum(ahs_medic_inc2$vb12diet_ea, ahs_medic_inc2$vb12supp)
+# ahs_medic_inc2$fol_ea  <- sum(ahs_medic_inc2$foldiet_ea,  ahs_medic_inc2$folsupp)
+# ahs_medic_inc2$n3_ea   <- sum(ahs_medic_inc2$p183diet_ea,  ahs_medic_inc2$p183supp,
+#                               ahs_medic_inc2$p184diet_ea,  ahs_medic_inc2$p184supp,
+#                               ahs_medic_inc2$p205diet_ea,  ahs_medic_inc2$p205supp,
+#                               ahs_medic_inc2$p225diet_ea,  ahs_medic_inc2$p225supp,
+#                               ahs_medic_inc2$p226diet_ea,  ahs_medic_inc2$p226supp)
 
 diet_plot <- function(var, diet_label){
   var <- enquo(var)
@@ -810,6 +917,58 @@ levels(ahs_medic_inc2$fish_gram_ea_4)  <- c("None", "<8.6 g/d", "8.6-<17.2 g/d",
 levels(ahs_medic_inc2$eggs_gram_ea_4)  <- c("<3.6 g/d", "3.6-7.5 g/d", "7.5-<16 g/d", "16+ g/d")
 levels(ahs_medic_inc2$dairy_gram_ea_4) <- c("<30 g/d", "30-100 g/d", "100-<236 g/d", "236+ g/d")
 
+# Tables for dietary variables
+ahs_medic_inc2 %>% 
+  select(ends_with("gram_ea_4")) %>% 
+  CreateCatTable(names(.), data = .)
+  select(eggs_gram_ea_4, meat_gram_ea_4, fish_gram_ea_4, dairy_gram_ea_4)
+
+# Mean and percentiles by egg intake group
+ahs_medic_inc2 %>% 
+  group_by(meat_gram_ea_4) %>% 
+  summarize(n    = n(),
+            pct  = n() / nrow(ahs_medic_inc2) * 100,
+            mean = mean(meat_gram_ea),
+            p1   = quantile(meat_gram_ea, probs= 0.25),
+            p2   = quantile(meat_gram_ea, probs= 0.5),
+            p3   = quantile(meat_gram_ea, probs= 0.75))
+
+ahs_medic_inc2 %>% 
+  group_by(fish_gram_ea_4) %>% 
+  summarize(n    = n(),
+            pct  = n() / nrow(ahs_medic_inc2) * 100,
+            mean = mean(fish_gram_ea),
+            p1   = quantile(fish_gram_ea, probs= 0.25),
+            p2   = quantile(fish_gram_ea, probs= 0.5),
+            p3   = quantile(fish_gram_ea, probs= 0.75))
+
+ahs_medic_inc2 %>% 
+  group_by(eggs_gram_ea_4) %>% 
+  summarize(n    = n(),
+            pct  = n() / nrow(ahs_medic_inc2) * 100,
+            mean = mean(eggs_gram_ea),
+            p1   = quantile(eggs_gram_ea, probs= 0.25),
+            p2   = quantile(eggs_gram_ea, probs= 0.5),
+            p3   = quantile(eggs_gram_ea, probs= 0.75))
+
+ahs_medic_inc2 %>% 
+  group_by(dairy_gram_ea_4) %>% 
+  summarize(n    = n(),
+            pct  = n() / nrow(ahs_medic_inc2) * 100,
+            mean = mean(dairy_gram_ea),
+            p1   = quantile(dairy_gram_ea, probs= 0.25),
+            p2   = quantile(dairy_gram_ea, probs= 0.5),
+            p3   = quantile(dairy_gram_ea, probs= 0.75))
+
+# egg and meat intake, 4x4 table
+ahs_medic_inc2 %>% 
+  CreateTableOne("eggs_gram_ea_4", strata = "meat_gram_ea_4", data = .) %>% 
+  print(showAllLevels = TRUE)
+
+ahs_medic_inc2 %>% 
+  CreateTableOne("meat_gram_ea_4", strata = "eggs_gram_ea_4", data = .) %>% 
+  print(showAllLevels = TRUE)
+
 # Table 1 -----------------------------------------------------------------
 
 # Variables to be included
@@ -831,8 +990,11 @@ tablevars <- c("agecat",
                "como_disab", 
                "como_diabetes", 
                "como_cvd", 
-               "como_hthl", 
+               # "como_hthl", 
+               "como_hypert", 
+               "como_hyperl", 
                "como_resp", 
+               "como_anemia", 
                "como_kidney", 
                "como_hypoth", 
                "como_cancers",
@@ -860,6 +1022,8 @@ ahs_medic_inc2  %>%
 sapply(ahs_medic_inc2[tablevars], function(x) sum(is.na(x)))
 
 
+
+
 # Table 1 by egg intake ---------------------------------------------------
 
 # Variables to be included
@@ -882,8 +1046,11 @@ tablevars <- c("ALZH_DEMEN_YN2",
                "como_disab", 
                "como_diabetes", 
                "como_cvd", 
-               "como_hthl", 
+               # "como_hthl", 
+               "como_hypert", 
+               "como_hyperl", 
                "como_resp", 
+               "como_anemia", 
                "como_kidney", 
                "como_hypoth", 
                "como_cancers",
@@ -898,19 +1065,22 @@ out <- ahs_medic_inc2 %>%
   CreateTableOne(tablevars, strata = "eggs_gram_ea_4", data = ., addOverall = TRUE)
 print(out, showAllLevels = TRUE)
 
-
 # Cox models --------------------------------------------------------------
 
 # Indep vars (will be age-adjusted)
-vars <- c("bene_sex_F", "rti_race3", "marital", "educyou2", "vegstat3", "bmicat", "exercise", "sleephrs2", "smokecat", "alccat",
-          "como_depress", "como_disab", "como_diabetes", "como_cvd", "como_hthl", "como_resp", "como_kidney", "como_hypoth", "como_cancers")
+vars <- c("bene_sex_F", "rti_race3", "marital", "educyou2", "bmicat", "exercise", "sleephrs2", "smokecat", "alccat",
+# vars <- c("bene_sex_F", "rti_race3", "marital", "educyou2", "vegstat3", "bmicat", "exercise", "sleephrs2", "smokecat", "alccat",
+          # "como_depress", "como_disab", "como_diabetes", "como_cvd", "como_hthl", "como_resp", "como_kidney", "como_hypoth", "como_cancers")
+          "como_depress", "como_disab", "como_diabetes", "como_cvd", "como_hypert", "como_hyperl", "como_resp", 
+          "como_anemia", "como_kidney", "como_hypoth", "como_cancers", "eggs_gram_ea_4", "meat_gram_ea_4", "fish_gram_ea_4", "dairy_gram_ea_4")
 
 ahs_medic_inc2 <- ahs_medic_inc2 %>% 
   mutate(bene_sex_F = relevel(bene_sex_F, ref="F"),
          bmicat     = relevel(bmicat, ref="Normal"),
          inc_demen  = ifelse(ALZH_DEMEN_YN == "Yes", 1, 0),
-         kcal100    = kcal / 100,
-         vegstat3   = fct_collapse(vegstat2, "Non-veg" = c("Non-veg", "Semi")))
+         kcal100    = kcal / 100)
+         # kcal100    = kcal / 100,
+         # vegstat3   = fct_collapse(vegstat2, "Non-veg" = c("Non-veg", "Semi")))
 
 # Cox proportinal hazards model
 coxm <- function(var, dsn = ahs_medic_inc2){
@@ -932,22 +1102,106 @@ rownames(out) <- unlist(mapply(replace_var, cox_out, varname = names(cox_out)))
 out
 
 # Multivariable Cox model
-mv_mod <- coxph(Surv(agein, ageout, inc_demen) ~ bene_sex_F + rti_race3 + marital + educyou2 + vegstat3 + 
-                  bmicat + exercise + sleephrs2 + smokecat + alccat + como_depress + como_disab + como_diabetes + 
-                  como_cvd + como_hthl + como_resp + como_kidney + como_hypoth + como_cancers, data = ahs_medic_inc2, method = "efron")
 
-mv_out  <- summary(mv_mod)
-mv_out2 <- cbind(mvHR = coef(mv_out)[, "exp(coef)"], exp(confint(mv_mod))) %>% round(2)
+# Model 1a: Demog + Lifestyle + Egg
+mv1a_mod <- coxph(Surv(agein, ageout, inc_demen) ~ bene_sex_F + rti_race3 + marital + educyou2 +  
+                    bmicat + exercise + sleephrs2 + smokecat + alccat + eggs_gram_ea_4, data = ahs_medic_inc2, method = "efron")
 
-# Model 1 Trend p-value
-mv_mod_tmp <- update(mv_mod, .~. - educyou2 + as.numeric(educyou))
+mv1a_out  <- summary(mv1a_mod)
+mv1a_out2 <- cbind(mvHR = coef(mv1a_out)[, "exp(coef)"], exp(confint(mv1a_mod))) %>% round(2)
+
+# Model 1a Trend p-value
+mv_mod_tmp <- update(mv1a_mod, .~. - educyou2 + as.numeric(educyou))
 summary(mv_mod_tmp)
-mv_mod_tmp <- update(mv_mod, .~. - bmicat + as.numeric(bmicat))
+mv_mod_tmp <- update(mv1a_mod, .~. - bmicat + as.numeric(bmicat))
 summary(mv_mod_tmp)
-mv_mod_tmp <- update(mv_mod, .~. - exercise + as.numeric(exercise))
+mv_mod_tmp <- update(mv1a_mod, .~. - exercise + as.numeric(exercise))
 summary(mv_mod_tmp)
-mv_mod_tmp <- update(mv_mod, .~. - sleephrs2 + as.numeric(sleephrs))
+mv_mod_tmp <- update(mv1a_mod, .~. - sleephrs2 + as.numeric(sleephrs))
 summary(mv_mod_tmp)
+mv_mod_tmp <- update(mv1a_mod, .~. - eggs_gram_ea_4 + as.numeric(eggs_gram_ea_4))
+summary(mv_mod_tmp)
+
+# Model 1b: Demog + Lifestyle + Comorbidity + Egg
+mv1b_mod <- coxph(Surv(agein, ageout, inc_demen) ~ bene_sex_F + rti_race3 + marital + educyou2 +
+                  bmicat + exercise + sleephrs2 + smokecat + alccat + eggs_gram_ea_4 +
+                  como_depress + como_disab + como_diabetes + como_cvd + como_hypert + como_hyperl + como_resp + 
+                  como_anemia + como_kidney + como_hypoth + como_cancers, data = ahs_medic_inc2, method = "efron")
+
+mv1b_out  <- summary(mv1b_mod)
+mv1b_out2 <- cbind(mvHR = coef(mv1b_out)[, "exp(coef)"], exp(confint(mv1b_mod))) %>% round(2)
+
+# Model 1b Trend p-value
+mv_mod_tmp <- update(mv1b_mod, .~. - educyou2 + as.numeric(educyou))
+summary(mv_mod_tmp)
+mv_mod_tmp <- update(mv1b_mod, .~. - bmicat + as.numeric(bmicat))
+summary(mv_mod_tmp)
+mv_mod_tmp <- update(mv1b_mod, .~. - exercise + as.numeric(exercise))
+summary(mv_mod_tmp)
+mv_mod_tmp <- update(mv1b_mod, .~. - sleephrs2 + as.numeric(sleephrs))
+summary(mv_mod_tmp)
+mv_mod_tmp <- update(mv1b_mod, .~. - eggs_gram_ea_4 + as.numeric(eggs_gram_ea_4))
+summary(mv_mod_tmp)
+
+# Model 2a: Demog + Lifestyle + Egg + Meat + Fish + Dairy
+mv2a_mod <- coxph(Surv(agein, ageout, inc_demen) ~ bene_sex_F + rti_race3 + marital + educyou2 +
+                    bmicat + exercise + sleephrs2 + smokecat + alccat + eggs_gram_ea_4 + 
+                    meat_gram_ea_4 + fish_gram_ea_4 + dairy_gram_ea_4, data = ahs_medic_inc2, method = "efron")
+
+mv2a_out  <- summary(mv2a_mod)
+mv2a_out2 <- cbind(mvHR = coef(mv2a_out)[, "exp(coef)"], exp(confint(mv2a_mod))) %>% round(2)
+
+# Model 2a Trend p-value
+mv_mod_tmp <- update(mv2a_mod, .~. - educyou2 + as.numeric(educyou))
+summary(mv_mod_tmp)
+mv_mod_tmp <- update(mv2a_mod, .~. - bmicat + as.numeric(bmicat))
+summary(mv_mod_tmp)
+mv_mod_tmp <- update(mv2a_mod, .~. - exercise + as.numeric(exercise))
+summary(mv_mod_tmp)
+mv_mod_tmp <- update(mv2a_mod, .~. - sleephrs2 + as.numeric(sleephrs))
+summary(mv_mod_tmp)
+mv_mod_tmp <- update(mv2a_mod, .~. - eggs_gram_ea_4 + as.numeric(eggs_gram_ea_4))
+summary(mv_mod_tmp)
+mv_mod_tmp <- update(mv2a_mod, .~. - meat_gram_ea_4 + as.numeric(meat_gram_ea_4))
+summary(mv_mod_tmp)
+mv_mod_tmp <- update(mv2a_mod, .~. - fish_gram_ea_4 + as.numeric(fish_gram_ea_4))
+summary(mv_mod_tmp)
+mv_mod_tmp <- update(mv2a_mod, .~. - dairy_gram_ea_4 + as.numeric(dairy_gram_ea_4))
+summary(mv_mod_tmp)
+
+# Model 2b: Demog + Lifestyle + Comorbidity + Egg + Meat + Fish + Dairy
+mv2b_mod <- coxph(Surv(agein, ageout, inc_demen) ~ bene_sex_F + rti_race3 + marital + educyou2 +
+                    bmicat + exercise + sleephrs2 + smokecat + alccat + eggs_gram_ea_4 + 
+                    meat_gram_ea_4 + fish_gram_ea_4 + dairy_gram_ea_4 +
+                    como_depress + como_disab + como_diabetes + como_cvd + como_hypert + como_hyperl + como_resp + 
+                    como_anemia + como_kidney + como_hypoth + como_cancers, data = ahs_medic_inc2, method = "efron")
+
+mv2b_out  <- summary(mv2b_mod)
+mv2b_out2 <- cbind(mvHR = coef(mv2b_out)[, "exp(coef)"], exp(confint(mv2b_mod))) %>% round(2)
+
+# Model 2b Trend p-value
+mv_mod_tmp <- update(mv2b_mod, .~. - educyou2 + as.numeric(educyou))
+summary(mv_mod_tmp)
+mv_mod_tmp <- update(mv2b_mod, .~. - bmicat + as.numeric(bmicat))
+summary(mv_mod_tmp)
+mv_mod_tmp <- update(mv2b_mod, .~. - exercise + as.numeric(exercise))
+summary(mv_mod_tmp)
+mv_mod_tmp <- update(mv2b_mod, .~. - sleephrs2 + as.numeric(sleephrs))
+summary(mv_mod_tmp)
+mv_mod_tmp <- update(mv2b_mod, .~. - eggs_gram_ea_4 + as.numeric(eggs_gram_ea_4))
+summary(mv_mod_tmp)
+mv_mod_tmp <- update(mv2b_mod, .~. - meat_gram_ea_4 + as.numeric(meat_gram_ea_4))
+summary(mv_mod_tmp)
+mv_mod_tmp <- update(mv2b_mod, .~. - fish_gram_ea_4 + as.numeric(fish_gram_ea_4))
+summary(mv_mod_tmp)
+mv_mod_tmp <- update(mv2b_mod, .~. - dairy_gram_ea_4 + as.numeric(dairy_gram_ea_4))
+summary(mv_mod_tmp)
+
+
+
+
+
+
 
 # For models with food group (remove dietary pattern)
 vars <- c("bene_sex_F", "rti_race3", "marital", "educyou2", "bmicat", "exercise", "sleephrs2", "smokecat", "alccat",
