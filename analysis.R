@@ -540,10 +540,25 @@ ahs_medic <- msbf_last_seen %>%
 
 nrow(ahs_medic)
 
+# Opt-outs: n = 395
+optout <- read_csv("./Data/OptOutAnalysisIDs.csv") %>% 
+  setNames("analysisid")
+
+# n = 146 to be excluded
+ahs_medic %>% 
+  semi_join(optout) %>% 
+  nrow()
+
+# Remove opt-outs, yielding n = 44,013
+ahs_medic <- ahs_medic %>% 
+  anti_join(optout, by = "analysisid")
+
+nrow(ahs_medic)
+
 # Apply inclusion/exclusion criteria --------------------------------------
 
-# Remove if AGE_AT_END_REF_YR < 65 (n = 1538)
-# Results in n = 42,621
+# Remove if AGE_AT_END_REF_YR < 65 (n = 1537)
+# Results in n = 42,476
 ahs_medic %>% 
   filter(AGE_AT_END_REF_YR < 65) %>% 
   nrow()
@@ -558,16 +573,16 @@ ahs_medic %>%
 ahs_medic <- ahs_medic %>% 
   filter(AGE_AT_END_REF_YR >= 65)
 
-# Remove if BMI is missing (n = 1157) or extreme (n = 147)
-# Resuts in n = 41,492
+# Remove if BMI is missing (n = 1151) or extreme (n = 146)
+# Resuts in n = 41,174
 ahs_medic %>% filter(is.na(bmi)) %>% tally()
 ahs_medic %>% filter(bmi < 16 | bmi > 60) %>% tally()
 ahs_medic %>% filter(bmi < 16 | bmi > 60 | is.na(bmi)) %>% tally()
 ahs_medic <- ahs_medic %>% 
   filter(bmi >= 16, bmi <= 60)
 
-# Exclude extreme kcal intake (n = 1032)
-# Results in n = 40,356
+# Exclude extreme kcal intake (n = 1030)
+# Results in n = 40,149
 ahs_medic %>% filter(is.na(kcal)) %>% tally()
 ahs_medic %>% filter(!(kcal > 500 & kcal < 4500)) %>% tally()
 ahs_medic <- ahs_medic %>% 
@@ -578,7 +593,7 @@ ahs_medic <- ahs_medic %>%
   mutate(ALZH_DEMEN_YN = ifelse(is.na(ALZH_DEMEN_EVER) & is.na(ALZH_EVER), 0, 1),
          ALZH_DEMEN_YN = factor(ALZH_DEMEN_YN, label = c("No", "Yes")))  
 
-# There are 7348 alzheimer/dementia cases (18.2%)
+# There are 7337 alzheimer/dementia cases (18.3%)
 ahs_medic %>%
   group_by(ALZH_DEMEN_YN) %>% 
   tally() %>% 
@@ -619,7 +634,7 @@ prev_cases <- alz_diag_date %>%
 prev_cases
 
 # Exclude prevalent cases
-# Yields n = 39,897 subjects
+# Yields n = 39,761 subjects
 ahs_medic_inc <- ahs_medic %>% 
   anti_join(prev_cases, by = "analysisid") %>% 
   mutate(BENE_BIRTH_DT = ymd(BENE_BIRTH_DT),
@@ -628,7 +643,7 @@ ahs_medic_inc <- ahs_medic %>%
 
 nrow(ahs_medic_inc)
 
-# Now we have 6960 incident cases (17.4%) out of 39,897 subjects
+# Now we have 6949 incident cases (17.5%) out of 39,761 subjects
 ahs_medic_inc %>% 
   group_by(ALZH_DEMEN_YN) %>% 
   tally() %>% 
@@ -660,7 +675,7 @@ unverified_deaths <- ahs_medic_inc %>%
   select(analysisid)
 
 # Exclude unverified deaths
-# Yields n = 39,947
+# Yields n = 39,740
 ahs_medic_inc <- ahs_medic_inc %>% 
   anti_join(unverified_deaths, by = "analysisid") 
 
@@ -793,7 +808,7 @@ ahs_medic_inc2 %>%
   sapply(\(x) sum(is.na(x)))
 
 # After excluding missing on covariates
-# there are 36,500 subjects
+# there are 36,370 subjects
 complete_cases <- ahs_medic_inc2 %>% 
   select(analysisid, all_of(modelvars)) %>% 
   filter(complete.cases(.)) %>% 
@@ -1072,7 +1087,8 @@ vars <- c("bene_sex_F", "rti_race3", "marital", "educyou2", "bmicat", "exercise"
 # vars <- c("bene_sex_F", "rti_race3", "marital", "educyou2", "vegstat3", "bmicat", "exercise", "sleephrs2", "smokecat", "alccat",
           # "como_depress", "como_disab", "como_diabetes", "como_cvd", "como_hthl", "como_resp", "como_kidney", "como_hypoth", "como_cancers")
           "como_depress", "como_disab", "como_diabetes", "como_cvd", "como_hypert", "como_hyperl", "como_resp", 
-          "como_anemia", "como_kidney", "como_hypoth", "como_cancers", "eggs_gram_ea_4", "meat_gram_ea_4", "fish_gram_ea_4", "dairy_gram_ea_4")
+          "como_anemia", "como_kidney", "como_hypoth", "como_cancers", 
+          "kcal100", "eggs_gram_ea_4", "meat_gram_ea_4", "fish_gram_ea_4", "dairy_gram_ea_4")
 
 ahs_medic_inc2 <- ahs_medic_inc2 %>% 
   mutate(bene_sex_F = relevel(bene_sex_F, ref="F"),
@@ -1105,7 +1121,7 @@ out
 
 # Model 1a: Demog + Lifestyle + Egg
 mv1a_mod <- coxph(Surv(agein, ageout, inc_demen) ~ bene_sex_F + rti_race3 + marital + educyou2 +  
-                    bmicat + exercise + sleephrs2 + smokecat + alccat + eggs_gram_ea_4, data = ahs_medic_inc2, method = "efron")
+                    bmicat + exercise + sleephrs2 + smokecat + alccat + kcal100 + eggs_gram_ea_4, data = ahs_medic_inc2, method = "efron")
 
 mv1a_out  <- summary(mv1a_mod)
 mv1a_out2 <- cbind(mvHR = coef(mv1a_out)[, "exp(coef)"], exp(confint(mv1a_mod))) %>% round(2)
@@ -1124,9 +1140,10 @@ summary(mv_mod_tmp)
 
 # Model 1b: Demog + Lifestyle + Comorbidity + Egg
 mv1b_mod <- coxph(Surv(agein, ageout, inc_demen) ~ bene_sex_F + rti_race3 + marital + educyou2 +
-                  bmicat + exercise + sleephrs2 + smokecat + alccat + eggs_gram_ea_4 +
+                  bmicat + exercise + sleephrs2 + smokecat + alccat +  +
                   como_depress + como_disab + como_diabetes + como_cvd + como_hypert + como_hyperl + como_resp + 
-                  como_anemia + como_kidney + como_hypoth + como_cancers, data = ahs_medic_inc2, method = "efron")
+                  como_anemia + como_kidney + como_hypoth + como_cancers +
+                  kcal100 + eggs_gram_ea_4, data = ahs_medic_inc2, method = "efron")
 
 mv1b_out  <- summary(mv1b_mod)
 mv1b_out2 <- cbind(mvHR = coef(mv1b_out)[, "exp(coef)"], exp(confint(mv1b_mod))) %>% round(2)
@@ -1145,7 +1162,7 @@ summary(mv_mod_tmp)
 
 # Model 2a: Demog + Lifestyle + Egg + Meat + Fish + Dairy
 mv2a_mod <- coxph(Surv(agein, ageout, inc_demen) ~ bene_sex_F + rti_race3 + marital + educyou2 +
-                    bmicat + exercise + sleephrs2 + smokecat + alccat + eggs_gram_ea_4 + 
+                    bmicat + exercise + sleephrs2 + smokecat + alccat + kcal100 + eggs_gram_ea_4 + 
                     meat_gram_ea_4 + fish_gram_ea_4 + dairy_gram_ea_4, data = ahs_medic_inc2, method = "efron")
 
 mv2a_out  <- summary(mv2a_mod)
@@ -1171,10 +1188,11 @@ summary(mv_mod_tmp)
 
 # Model 2b: Demog + Lifestyle + Comorbidity + Egg + Meat + Fish + Dairy
 mv2b_mod <- coxph(Surv(agein, ageout, inc_demen) ~ bene_sex_F + rti_race3 + marital + educyou2 +
-                    bmicat + exercise + sleephrs2 + smokecat + alccat + eggs_gram_ea_4 + 
-                    meat_gram_ea_4 + fish_gram_ea_4 + dairy_gram_ea_4 +
+                    bmicat + exercise + sleephrs2 + smokecat + alccat + 
                     como_depress + como_disab + como_diabetes + como_cvd + como_hypert + como_hyperl + como_resp + 
-                    como_anemia + como_kidney + como_hypoth + como_cancers, data = ahs_medic_inc2, method = "efron")
+                    como_anemia + como_kidney + como_hypoth + como_cancers +
+                    kcal100 + eggs_gram_ea_4 +
+                    meat_gram_ea_4 + fish_gram_ea_4 + dairy_gram_ea_4, data = ahs_medic_inc2, method = "efron")
 
 mv2b_out  <- summary(mv2b_mod)
 mv2b_out2 <- cbind(mvHR = coef(mv2b_out)[, "exp(coef)"], exp(confint(mv2b_mod))) %>% round(2)

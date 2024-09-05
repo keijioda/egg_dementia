@@ -233,20 +233,28 @@ ahs_medic <- msbf_last_seen %>%
   inner_join(ahsdiet, by = "analysisid") %>% 
   ungroup()
 
+# Opt-outs: n = 395
+optout <- read_csv("./Data/OptOutAnalysisIDs.csv") %>% 
+  setNames("analysisid")
+
+# Remove opt-outs, yielding n = 44,013
+ahs_medic <- ahs_medic %>% 
+  anti_join(optout, by = "analysisid")
+
 # Apply inclusion/exclusion criteria --------------------------------------
 
-# Remove if AGE_AT_END_REF_YR < 65 (n = 1538)
-# Results in n = 42,621
+# Remove if AGE_AT_END_REF_YR < 65 (n = 1537
+# Results in n = 42,476
 ahs_medic <- ahs_medic %>% 
   filter(AGE_AT_END_REF_YR >= 65)
 
-# Remove if BMI is missing (n = 1157) or extreme (n = 147)
-# Resuts in n = 41,492
+# Remove if BMI is missing (n = 1151) or extreme (n = 146)
+# Resuts in n = 41,174
 ahs_medic <- ahs_medic %>% 
   filter(bmi >= 16, bmi <= 60)
 
-# Exclude extreme kcal intake (n = 1032)
-# Results in n = 40,356
+# Exclude extreme kcal intake (n = 1030)
+# Results in n = 40,149
 ahs_medic <- ahs_medic %>% 
   filter(kcal > 500 & kcal < 4500)
 
@@ -270,7 +278,7 @@ prev_cases <- alz_diag_date %>%
   select(BENE_ID, analysisid, ALZH_DEMEN_YN, qreturndate, ALZH_DEMEN_EVER, DateDiff_days, DateDiff_months, DateDiff_years)
 
 # Exclude prevalent cases
-# Yields n = 39,897 subjects
+# Yields n = 39,761 subjects
 ahs_medic_inc <- ahs_medic %>% 
   anti_join(prev_cases, by = "analysisid") %>% 
   mutate(BENE_BIRTH_DT = ymd(BENE_BIRTH_DT),
@@ -285,7 +293,7 @@ unverified_deaths <- ahs_medic_inc %>%
   select(analysisid)
 
 # Exclude unverified deaths
-# Yields n = 39,947
+# Yields n = 39,740
 ahs_medic_inc <- ahs_medic_inc %>% 
   anti_join(unverified_deaths, by = "analysisid") 
 
@@ -400,7 +408,7 @@ modelvars <- c("bene_age_at_end_2020",
 )
 
 # After excluding missing on covariates
-# there are 36,500 subjects
+# there are 36,370 subjects
 complete_cases <- ahs_medic_inc2 %>% 
   select(analysisid, all_of(modelvars)) %>% 
   filter(complete.cases(.)) %>% 
@@ -466,24 +474,26 @@ levels(ahs_medic_inc2$dairy_gram_ea_4) <- c("<30 g/d", "30-100 g/d", "100-<236 g
   
 * After merging Medicare and AHS-2 data, there were n = 44,159 subjects.
 
+* Among n = 44,159 subjects, there were n = 146 subjects who opted out from the study. Excluding these subjects yielded n = 44,013.
+
 ## Inclusion/exclusion criteria
 
-* Medicare beneficiaries who did not reach the age of 65 between 2008 and 2020 (e.g., younger beneficiaries with disabilities or end-stage renal disease) were excluded (n = 1538), resulting n = 42,621.
+* Medicare beneficiaries who did not reach the age of 65 between 2008 and 2020 (e.g., younger beneficiaries with disabilities or end-stage renal disease) were excluded (n = 1537), resulting n = 42,476.
 
-* n = 1304 subjects with missing BMI or extreme BMI (<16 or >60), according to AHS questionnaire, were excluded, resulting n = 41,317.
+* n = 1302 subjects with missing BMI or extreme BMI (<16 or >60), according to AHS questionnaire, were excluded, resulting n = 41,174.
 
-* n = 1032 subjects with extreme calorie intake (<500 or >4500 kcal) were excluded, resulting n = 40,285.
+* n = 1030 subjects with extreme calorie intake (<500 or >4500 kcal) were excluded, resulting n = 40,149.
 
 * Prevalent cases of dementia and/or Alzheimer's disease
   * If the first diagnosis was made before AHS-2 enrollment or within 6 months after the enrollment, consider it as a prevalent case
-  * n = 388 such prevalent cases were excluded, resulting n = 39,897 subjects
+  * n = 388 such prevalent cases were excluded, resulting n = 39,761 subjects
   
 * Unverified dates of deaths
   * Medicare data include a variable (`VALID_DEATH_DT_SW`) indicating whether a beneficiary's day of death has been verified by the Social Security Administration or the Railroad Retirement Board.
-  * There were 21 unverified death dates. Excluding these resulted n = 39,876.
+  * There were 21 unverified death dates. Excluding these resulted n = 39,740.
 
 * Missing values in covariates
-  * There were n = 3376 subjects who has at least one missing value on covariates (such as marital status, education, exercise level, sleep hours, smoking and alcohol use, all of them come from AHS questionnaire). These subjects were excluded, resulting in n = 36,500.
+  * There were n = 3370 subjects who has at least one missing value on covariates (such as marital status, education, exercise level, sleep hours, smoking and alcohol use, all of them come from AHS questionnaire). These subjects were excluded, resulting in n = 36,370.
 
 ## Dietary variables 
 
