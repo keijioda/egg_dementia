@@ -331,7 +331,10 @@ ahs_medic_inc2 <- ahs_medic_inc2 %>%
     alcnow     = ifelse(is.na(alcnow), 0, alcnow),
     alccat     = ifelse(alcnow == 1, 2, ifelse(alcohol > 1, 2, 1)),
     alccat     = factor(alccat, labels = c("Never", "Ever")),
-    vegstat2   = relevel(vegstat, ref = "Non-veg"))
+    vegstat2   = relevel(vegstat, ref = "Non-veg"),
+    eggbetrf   = ifelse(is.na(eggbetrf), 1, eggbetrf),
+    egg_freq   = recode(eggbetrf, 1, 2, 3, 4, 4, 4, 4, 4, 4),
+    egg_freq   = factor(egg_freq, labels = c("Never", "1-3/mo", "1/wk", "2+/wk")))
 
 
 # Co-morbidity ------------------------------------------------------------
@@ -497,13 +500,13 @@ levels(ahs_medic_inc2$dairy_gram_ea_4) <- c("<30 g/d", "30-100 g/d", "100-<236 g
 
 ## Dietary variables 
 
-* Gram intakes of 4 food groups (meat, fish, egg, and dairy) were calculated (gram/day) according to AHS-2 food frequency questionnaire. 
+* Gram intakes of 3 food groups (meat, fish, and dairy) were calculated (gram/day) according to AHS-2 food frequency questionnaire. 
 
 * For each food group, its dietary intake was energy-adjusted by the residual method, while partitioning zero intake ([Jaceldo-Siegl et al., 2011](https://www.ncbi.nlm.nih.gov/pmc/articles/PMC3433053/)). Due to its highly right-skewed distribution, non-zero intake was log-transformed before being regressed on the total energy intake. Residuals were added by the mean of log and then back-transformed to obtain energy-adjusted dietary intake. Energy-adjusted dietary intake was added with (unadjusted) supplement intake to form energy-adjuste total intake.
 
 * Subjects were then divided into 4 intake levels. 
   * For meat and fish, about 51% of subjects indicated zero intake and they were classified to a non-consumption group. The rest of the subjects were approximately equally allocated to 3 consumption groups according to their intake. 
-  * For egg and dairy, subjects were divided into 4 quartile groups.
+  * For dairy, subjects were divided into 4 quartile groups.
   * For cut-off values of the four food groups, please see the descriptive table below.
 
 * Mean and 25th, 50th, 75th percentiles of gram intake by intake group are shown below:
@@ -530,15 +533,15 @@ ahs_medic_inc2 %>%
             p3   = quantile(fish_gram_ea, probs= 0.75)) %>% 
   knitr::kable(digits = 2)
 
-ahs_medic_inc2 %>% 
-  group_by(eggs_gram_ea_4) %>% 
-  summarize(n    = n(),
-            pct  = n() / nrow(ahs_medic_inc2) * 100,
-            mean = mean(eggs_gram_ea),
-            p1   = quantile(eggs_gram_ea, probs= 0.25),
-            p2   = quantile(eggs_gram_ea, probs= 0.5),
-            p3   = quantile(eggs_gram_ea, probs= 0.75)) %>% 
-  knitr::kable(digits = 2)
+# ahs_medic_inc2 %>% 
+#   group_by(eggs_gram_ea_4) %>% 
+#   summarize(n    = n(),
+#             pct  = n() / nrow(ahs_medic_inc2) * 100,
+#             mean = mean(eggs_gram_ea),
+#             p1   = quantile(eggs_gram_ea, probs= 0.25),
+#             p2   = quantile(eggs_gram_ea, probs= 0.5),
+#             p3   = quantile(eggs_gram_ea, probs= 0.75)) %>% 
+#   knitr::kable(digits = 2)
 
 ahs_medic_inc2 %>% 
   group_by(dairy_gram_ea_4) %>% 
@@ -558,12 +561,14 @@ ahs_medic_inc2 %>%
 ```{r egg_meat_crosstab, echo = FALSE}
 # egg and meat intake, 4x4 table
 ahs_medic_inc2 %>% 
-  CreateTableOne("eggs_gram_ea_4", strata = "meat_gram_ea_4", data = .) %>% 
+  # CreateTableOne("eggs_gram_ea_4", strata = "meat_gram_ea_4", data = .) %>% 
+  CreateTableOne("egg_freq", strata = "meat_gram_ea_4", data = .) %>% 
   print(showAllLevels = TRUE) %>% 
   kableone()
 
 ahs_medic_inc2 %>% 
-  CreateTableOne("meat_gram_ea_4", strata = "eggs_gram_ea_4", data = .) %>% 
+  # CreateTableOne("meat_gram_ea_4", strata = "eggs_gram_ea_4", data = .) %>% 
+  CreateTableOne("meat_gram_ea_4", strata = "egg_freq", data = .) %>% 
   print(showAllLevels = TRUE) %>% 
   kableone()
 ```
@@ -625,9 +630,10 @@ tablevars <- c("agecat",
                "como_kidney", 
                "como_hypoth", 
                "como_cancers",
+               "egg_freq",
                "meat_gram_ea_4",
                "fish_gram_ea_4",
-               "eggs_gram_ea_4",
+               # "eggs_gram_ea_4",
                "dairy_gram_ea_4"
                )
 
@@ -678,7 +684,8 @@ tablevars <- c("ALZH_DEMEN_YN2",
 
 ahs_medic_inc2 %>% 
   mutate(ALZH_DEMEN_YN2 = fct_recode(ALZH_DEMEN_YN, "Non-case" = "No", "Case" = "Yes")) %>% 
-  CreateTableOne(tablevars, strata = "eggs_gram_ea_4", data = ., addOverall = TRUE) %>% 
+  # CreateTableOne(tablevars, strata = "eggs_gram_ea_4", data = ., addOverall = TRUE) %>% 
+  CreateTableOne(tablevars, strata = "egg_freq", data = ., addOverall = TRUE) %>% 
   print(showAllLevels = TRUE) %>% 
   kableone()
 ```
@@ -725,15 +732,16 @@ ahs_medic_inc2 %>%
     * Dietary pattern and dementia (2nd paper)
   
   * For the first paper;
-    * Need other food groups: vegetables and fruits -- get data from GF (along with meat as food group)
-    * Need nutrient variables: Carotenoids (LYCO, LUTE, LZ, ZEA)? -- JO to think about
-    * Crosstab b/w egg and meat intake
-    * Mean/percentiles by egg intake group
-    * Re-label egg intake groups
+    * For egg intake, use its frequency -- need to collapse
+    * Need other food groups: vegetables, fruits, grains, nuts/seeds, legumes -- get data from GF (along with meat as food group)
+    * ~~Need nutrient variables: Carotenoids (LYCO, LUTE, LZ, ZEA)? -- JO to think about~~
+    * Crosstab b/w egg and meat intake -- Done
+    * Mean/percentiles by egg intake group -- Done
+    * ~~Re-label egg intake groups~~
     * Model with and without comobidity
       * Model 1a: Demographics and lifestyle + Egg
       * Model 1b: Add comorbidity
-      * Model 2a: Model 1a + other food groups 
+      * ~~Model 2a: Model 1a + other food groups~~
       * Model 2b: Model 1b + other food groups
     
   * For the second paper:
