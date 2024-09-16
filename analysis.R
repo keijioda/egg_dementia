@@ -991,6 +991,26 @@ ahs_medic_inc2 %>%
   CreateTableOne("meat_gram_ea_4", strata = "egg_freq", data = .) %>% 
   print(showAllLevels = TRUE)
 
+# Egg frequency and serving size
+eggbetrf_labels <- c("Never", "1-3x/mo", "1x/wk", "2-4x/wk", "5-6x/wk", "1x/day", "2-3x/day", "4-5x/day", "6+x/day")
+
+ahs_medic_inc2 %>% 
+  mutate(eggbetrf = factor(eggbetrf, labels = eggbetrf_labels)) %>% 
+  CreateCatTable(vars = "eggbetrf", data = .)
+
+ahs_medic_inc2 %>% 
+  mutate(eggbetra = ifelse((eggbetrf > 1 & is.na(eggbetra)) | eggbetra == 0, 2, eggbetra), 
+         eggbetra = factor(eggbetra, labels = c("1/2 serv", "1 serv", "1.5+ serv"))) %>% 
+  CreateCatTable(vars = "eggbetra", data = ., includeNA = TRUE)
+
+ahs_medic_inc2 %>% 
+  mutate(eggbetra = ifelse((eggbetrf > 1 & is.na(eggbetra)) | eggbetra == 0, 2, eggbetra),
+         eggbetra = ifelse(is.na(eggbetra), 4, eggbetra), 
+         eggbetra = factor(eggbetra, labels = c("1/2 serv", "1 serv", "1.5+ serv", "missing"))) %>% 
+  mutate(eggbetrf = factor(eggbetrf, labels = eggbetrf_labels)) %>% 
+  CreateTableOne(vars = "eggbetrf", strata = "eggbetra", data = .)
+
+
 # Table 1 -----------------------------------------------------------------
 
 # Variables to be included
