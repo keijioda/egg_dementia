@@ -730,9 +730,9 @@ ahs_medic_inc2 <- ahs_medic_inc2 %>%
     vegstat2   = relevel(vegstat, ref = "Non-veg"),
     eggbetrf   = ifelse(is.na(eggbetrf), 1, eggbetrf),
     egg_freq   = recode(eggbetrf, 1, 2, 3, 4, 4, 4, 4, 4, 4),
-    # egg_freq   = recode(eggbetrf, 1, 2, 2, 3, 4, 4, 4, 4, 4),
+    # egg_freq   = recode(eggbetrf, 1, 2, 3, 3, 4, 4, 4, 4, 4),
     egg_freq   = factor(egg_freq, labels = c("Never", "1-3/mo", "1/wk", "2+/wk")))
-    # egg_freq   = factor(egg_freq, labels = c("Never", "<1/wk", "1-4/wk", "5+/wk")))
+    # egg_freq   = factor(egg_freq, labels = c("Never", "1-3x/mo", "1-4x/wk", "5+x/wk")))
 
 
 # Co-morbidity ------------------------------------------------------------
@@ -1187,7 +1187,7 @@ mv_mod_tmp <- update(mv1b_mod, .~. - exercise + as.numeric(exercise))
 summary(mv_mod_tmp)
 mv_mod_tmp <- update(mv1b_mod, .~. - sleephrs2 + as.numeric(sleephrs))
 summary(mv_mod_tmp)
-mv_mod_tmp <- update(mv1b_mod, .~. - eggs_gram_ea_4 + as.numeric(eggs_gram_ea_4))
+mv_mod_tmp <- update(mv1b_mod, .~. - egg_freq + as.numeric(egg_freq))
 summary(mv_mod_tmp)
 
 # Model 2a: Demog + Lifestyle + Egg + Meat + Fish + Dairy
@@ -1208,7 +1208,7 @@ mv_mod_tmp <- update(mv2a_mod, .~. - exercise + as.numeric(exercise))
 summary(mv_mod_tmp)
 mv_mod_tmp <- update(mv2a_mod, .~. - sleephrs2 + as.numeric(sleephrs))
 summary(mv_mod_tmp)
-mv_mod_tmp <- update(mv2a_mod, .~. - eggs_gram_ea_4 + as.numeric(eggs_gram_ea_4))
+mv_mod_tmp <- update(mv2a_mod, .~. - egg_freq + as.numeric(egg_freq))
 summary(mv_mod_tmp)
 mv_mod_tmp <- update(mv2a_mod, .~. - meat_gram_ea_4 + as.numeric(meat_gram_ea_4))
 summary(mv_mod_tmp)
@@ -1238,7 +1238,8 @@ mv_mod_tmp <- update(mv2b_mod, .~. - exercise + as.numeric(exercise))
 summary(mv_mod_tmp)
 mv_mod_tmp <- update(mv2b_mod, .~. - sleephrs2 + as.numeric(sleephrs))
 summary(mv_mod_tmp)
-mv_mod_tmp <- update(mv2b_mod, .~. - eggs_gram_ea_4 + as.numeric(eggs_gram_ea_4))
+# mv_mod_tmp <- update(mv2b_mod, .~. - eggs_gram_ea_4 + as.numeric(eggs_gram_ea_4))
+mv_mod_tmp <- update(mv2b_mod, .~. - egg_freq + as.numeric(egg_freq))
 summary(mv_mod_tmp)
 mv_mod_tmp <- update(mv2b_mod, .~. - meat_gram_ea_4 + as.numeric(meat_gram_ea_4))
 summary(mv_mod_tmp)
