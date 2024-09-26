@@ -210,6 +210,32 @@ ahsdiet$bmi <- NULL
 ahsdiet <- ahsdiet %>% 
   filter(x_cannotusediet == 0)
 
+# Additional AHS-2 dietary data -------------------------------------------
+# Ohter food group variables
+
+# n = 88,029
+temp <- read_csv("./Data/File_1_2024-09-19.csv")
+
+add_food_groups <- temp %>% 
+  select(
+    analysisid,
+    totalveg_gramdiet, 
+    fruits_gramdiet, 
+    wholegrains_gramdiet, 
+    mixedgrains_gramdiet, 
+    refgrains_gramdiet, 
+    nutsseeds_gramdiet, 
+    legumes_gramdiet
+  ) %>% 
+  mutate(grains_gramdiet = wholegrains_gramdiet + mixedgrains_gramdiet + refgrains_gramdiet,
+         whole_mixed_grains_gramdiet = wholegrains_gramdiet + mixedgrains_gramdiet)
+
+rm(temp)
+
+# When joining with ahsdiet, n = 87,891
+ahsdiet2 <- ahsdiet %>% 
+  inner_join(add_food_groups, by = "analysisid")
+
 # Merge AHS data with Medicare --------------------------------------------
 
 # Extract data of the last seen: MSBF and CC files  
@@ -222,7 +248,7 @@ cc_last_seen <- all_cc_long %>%
   slice(n())
 
 # Merge AHS data with Medicare
-# Results in n = 44,159 subjects
+# Results in n = 41,172 subjects
 ahs_medic <- msbf_last_seen %>% 
   inner_join(cc_last_seen %>% select(-BENE_ENROLLMT_REF_YR), by = "BENE_ID") %>%
   inner_join(ahs_dup_removed %>% 
@@ -230,31 +256,32 @@ ahs_medic <- msbf_last_seen %>%
                mutate(analysisid = parse_number(AnalysisID)), by = "BENE_ID") %>% 
   inner_join(ahsdata, by = "analysisid") %>% 
   # left_join(ahsdiet, by = "analysisid") %>% 
-  inner_join(ahsdiet, by = "analysisid") %>% 
+  # inner_join(ahsdiet, by = "analysisid") %>% 
+  inner_join(ahsdiet2, by = "analysisid") %>% 
   ungroup()
 
 # Opt-outs: n = 395
 optout <- read_csv("./Data/OptOutAnalysisIDs.csv") %>% 
   setNames("analysisid")
 
-# Remove opt-outs, yielding n = 44,013
+# Remove opt-outs, yielding n = 41,029
 ahs_medic <- ahs_medic %>% 
   anti_join(optout, by = "analysisid")
 
 # Apply inclusion/exclusion criteria --------------------------------------
 
-# Remove if AGE_AT_END_REF_YR < 65 (n = 1537
-# Results in n = 42,476
+# Remove if AGE_AT_END_REF_YR < 65 (n = 1339)
+# Results in n = 39,690
 ahs_medic <- ahs_medic %>% 
   filter(AGE_AT_END_REF_YR >= 65)
 
-# Remove if BMI is missing (n = 1151) or extreme (n = 146)
-# Resuts in n = 41,174
+# Remove if BMI is missing (n = 1028) or extreme (n = 78)
+# Resuts in n = 38,584
 ahs_medic <- ahs_medic %>% 
   filter(bmi >= 16, bmi <= 60)
 
-# Exclude extreme kcal intake (n = 1030)
-# Results in n = 40,149
+# Exclude extreme kcal intake (n = 108)
+# Results in n = 38,476
 ahs_medic <- ahs_medic %>% 
   filter(kcal > 500 & kcal < 4500)
 
@@ -278,7 +305,7 @@ prev_cases <- alz_diag_date %>%
   select(BENE_ID, analysisid, ALZH_DEMEN_YN, qreturndate, ALZH_DEMEN_EVER, DateDiff_days, DateDiff_months, DateDiff_years)
 
 # Exclude prevalent cases
-# Yields n = 39,761 subjects
+# Yields n = 38,113 subjects
 ahs_medic_inc <- ahs_medic %>% 
   anti_join(prev_cases, by = "analysisid") %>% 
   mutate(BENE_BIRTH_DT = ymd(BENE_BIRTH_DT),
@@ -286,14 +313,14 @@ ahs_medic_inc <- ahs_medic %>%
          ALZH_DEMEN_EVER = ymd(ALZH_DEMEN_EVER))
 
 # Need to exclude unverified deaths
-# There are 21 unverified deaths
+# There are 18 unverified deaths
 unverified_deaths <- ahs_medic_inc %>% 
   filter(!is.na(BENE_DEATH_DT)) %>%
   filter(is.na(VALID_DEATH_DT_SW)) %>% 
   select(analysisid)
 
 # Exclude unverified deaths
-# Yields n = 39,740
+# Yields n = 38,095
 ahs_medic_inc <- ahs_medic_inc %>% 
   anti_join(unverified_deaths, by = "analysisid") 
 
@@ -333,8 +360,8 @@ ahs_medic_inc2 <- ahs_medic_inc2 %>%
     alccat     = factor(alccat, labels = c("Never", "Ever")),
     vegstat2   = relevel(vegstat, ref = "Non-veg"),
     eggbetrf   = ifelse(is.na(eggbetrf), 1, eggbetrf),
-    egg_freq   = recode(eggbetrf, 1, 2, 3, 4, 4, 4, 4, 4, 4),
-    egg_freq   = factor(egg_freq, labels = c("Never", "1-3/mo", "1/wk", "2+/wk")))
+    egg_freq   = recode(eggbetrf, 1, 2, 3, 4, 5, 5, 5, 5, 5),
+    egg_freq   = factor(egg_freq, labels = c("Never", "1-3/mo", "1/wk", "2-4/wk", "5+/wk")))
 
 
 # Co-morbidity ------------------------------------------------------------
@@ -411,7 +438,7 @@ modelvars <- c("bene_age_at_end_2020",
 )
 
 # After excluding missing on covariates
-# there are 36,370 subjects
+# there are 35,034 subjects
 complete_cases <- ahs_medic_inc2 %>% 
   select(analysisid, all_of(modelvars)) %>% 
   filter(complete.cases(.)) %>% 
@@ -430,9 +457,16 @@ ahs_medic_inc2$fish_gram_ea      <- kcal_adjust(fish_gram,  kcal, data = ahs_med
 ahs_medic_inc2$eggs_gram_ea      <- kcal_adjust(eggs_gram,  kcal, data = ahs_medic_inc2, log = TRUE)
 ahs_medic_inc2$dairy_gram_ea     <- kcal_adjust(dairy_gram, kcal, data = ahs_medic_inc2, log = TRUE)
 ahs_medic_inc2$nutsseeds_gram_ea <- kcal_adjust(nutsseeds_gram, kcal, data = ahs_medic_inc2, log = TRUE)
+ahs_medic_inc2$totalveg_gram_ea  <- kcal_adjust(totalveg_gramdiet, kcal, data = ahs_medic_inc2, log = TRUE)
+ahs_medic_inc2$fruits_gram_ea    <- kcal_adjust(fruits_gramdiet, kcal, data = ahs_medic_inc2, log = TRUE)
+ahs_medic_inc2$legumes_gram_ea   <- kcal_adjust(legumes_gramdiet, kcal, data = ahs_medic_inc2, log = TRUE)
+
+ahs_medic_inc2$refgrains_gram_ea          <- kcal_adjust(refgrains_gramdiet, kcal, data = ahs_medic_inc2, log = TRUE)
+ahs_medic_inc2$whole_mixed_grains_gram_ea <- kcal_adjust(whole_mixed_grains_gramdiet, kcal, data = ahs_medic_inc2, log = TRUE)
 
 # Quartiles for egg, dairy and nuts/seeds
-ea_diet_vars <- c("eggs_gram_ea", "dairy_gram_ea", "nutsseeds_gram_ea")
+ea_diet_vars <- c("eggs_gram_ea", "dairy_gram_ea", "nutsseeds_gram_ea", "totalveg_gram_ea", "fruits_gram_ea", 
+                  "refgrains_gram_ea", "whole_mixed_grains_gram_ea", "legumes_gram_ea")
 get_percentile <- function(var, data = ahs_medic_inc2) cutQ(data[[var]], na.rm = TRUE, p = 0:4/4)
 test <- lapply(ea_diet_vars, get_percentile)
 names(test) <- paste0(ea_diet_vars, "_4")
@@ -447,6 +481,12 @@ levels(ahs_medic_inc2$meat_gram_ea_4)  <- c("None", "<11 g/d", "11-<32 g/d", "32
 levels(ahs_medic_inc2$fish_gram_ea_4)  <- c("None", "<8.6 g/d", "8.6-<17.2 g/d", "17.2+ g/d")
 levels(ahs_medic_inc2$eggs_gram_ea_4)  <- c("<3.6 g/d", "3.6-7.5 g/d", "7.5-<16 g/d", "16+ g/d")
 levels(ahs_medic_inc2$dairy_gram_ea_4) <- c("<30 g/d", "30-100 g/d", "100-<236 g/d", "236+ g/d")
+levels(ahs_medic_inc2$totalveg_gram_ea_4)  <- c("<182 g/d", "182-<269 g/d", "269-<379 g/d", "379+ g/d")
+levels(ahs_medic_inc2$fruits_gram_ea_4)    <- c("<168 g/d", "168-<279 g/d", "279-<418 g/d", "418+ g/d")
+levels(ahs_medic_inc2$nutsseeds_gram_ea_4) <- c("<9.54 g/d", "9.54-<19 g/d", "19-<33 g/d", "33+ g/d")
+levels(ahs_medic_inc2$legumes_gram_ea_4)   <- c("<33.6 g/d", "33.6-<61.0 g/d", "61.0-<99.2 g/d", "99.2+ g/d")
+levels(ahs_medic_inc2$refgrains_gram_ea_4)          <- c("<37.8 g/d", "37.8-<79.1 g/d", "79.1-<144 g/d", "144+ g/d")
+levels(ahs_medic_inc2$whole_mixed_grains_gram_ea_4) <- c("<144 g/d", "144-<208 g/d", "208-<358 g/d", "358+ g/d")
 
 ```
 
@@ -473,30 +513,30 @@ levels(ahs_medic_inc2$dairy_gram_ea_4) <- c("<30 g/d", "30-100 g/d", "100-<236 g
 
 * AHS-2
   * Baseline data: n = 96,144
-  * Dietary data: n = 95,344
+  * Dietary data: n = 87,891
   
-* After merging Medicare and AHS-2 data, there were n = 44,159 subjects.
+* After merging Medicare and AHS-2 data, there were n = 41,172 subjects.
 
-* Among n = 44,159 subjects, there were n = 146 subjects who opted out from the study. Excluding these subjects yielded n = 44,013.
+* Among n = 41,172 subjects, there were n = 143 subjects who opted out from the study. Excluding these subjects yielded n = 41,029.
 
 ## Inclusion/exclusion criteria
 
-* Medicare beneficiaries who did not reach the age of 65 between 2008 and 2020 (e.g., younger beneficiaries with disabilities or end-stage renal disease) were excluded (n = 1537), resulting n = 42,476.
+* Medicare beneficiaries who did not reach the age of 65 between 2008 and 2020 (e.g., younger beneficiaries with disabilities or end-stage renal disease) were excluded (n = 1339), resulting n = 39,690.
 
-* n = 1302 subjects with missing BMI or extreme BMI (<16 or >60), according to AHS questionnaire, were excluded, resulting n = 41,174.
+* n = 1106 subjects with missing BMI or extreme BMI (<16 or >60), according to AHS questionnaire, were excluded, resulting n = 38,584.
 
-* n = 1030 subjects with extreme calorie intake (<500 or >4500 kcal) were excluded, resulting n = 40,149.
+* n = 108 subjects with extreme calorie intake (<500 or >4500 kcal) were excluded, resulting n = 38,476.
 
 * Prevalent cases of dementia and/or Alzheimer's disease
   * If the first diagnosis was made before AHS-2 enrollment or within 6 months after the enrollment, consider it as a prevalent case
-  * n = 388 such prevalent cases were excluded, resulting n = 39,761 subjects
+  * n = 363 such prevalent cases were excluded, resulting n = 38,113 subjects
   
 * Unverified dates of deaths
   * Medicare data include a variable (`VALID_DEATH_DT_SW`) indicating whether a beneficiary's day of death has been verified by the Social Security Administration or the Railroad Retirement Board.
-  * There were 21 unverified death dates. Excluding these resulted n = 39,740.
+  * There were 18 unverified death dates. Excluding these resulted n = 38,095.
 
 * Missing values in covariates
-  * There were n = 3370 subjects who has at least one missing value on covariates (such as marital status, education, exercise level, sleep hours, smoking and alcohol use, all of them come from AHS questionnaire). These subjects were excluded, resulting in n = 36,370.
+  * There were n = 3061 subjects who has at least one missing value on covariates (such as marital status, education, exercise level, sleep hours, smoking and alcohol use, all of them come from AHS questionnaire). These subjects were excluded, resulting in n = 35,034.
 
 ## Dietary variables 
 
@@ -506,7 +546,7 @@ levels(ahs_medic_inc2$dairy_gram_ea_4) <- c("<30 g/d", "30-100 g/d", "100-<236 g
 
 * Subjects were then divided into 4 intake levels. 
   * For meat and fish, about 51% of subjects indicated zero intake and they were classified to a non-consumption group. The rest of the subjects were approximately equally allocated to 3 consumption groups according to their intake. 
-  * For dairy, subjects were divided into 4 quartile groups.
+  * For other food group variables, subjects were divided into 4 quartile groups.
   * For cut-off values of the four food groups, please see the descriptive table below.
 
 * Mean and 25th, 50th, 75th percentiles of gram intake by intake group are shown below:
@@ -533,16 +573,6 @@ ahs_medic_inc2 %>%
             p3   = quantile(fish_gram_ea, probs= 0.75)) %>% 
   knitr::kable(digits = 2)
 
-# ahs_medic_inc2 %>% 
-#   group_by(eggs_gram_ea_4) %>% 
-#   summarize(n    = n(),
-#             pct  = n() / nrow(ahs_medic_inc2) * 100,
-#             mean = mean(eggs_gram_ea),
-#             p1   = quantile(eggs_gram_ea, probs= 0.25),
-#             p2   = quantile(eggs_gram_ea, probs= 0.5),
-#             p3   = quantile(eggs_gram_ea, probs= 0.75)) %>% 
-#   knitr::kable(digits = 2)
-
 ahs_medic_inc2 %>% 
   group_by(dairy_gram_ea_4) %>% 
   summarize(n    = n(),
@@ -551,6 +581,66 @@ ahs_medic_inc2 %>%
             p1   = quantile(dairy_gram_ea, probs= 0.25),
             p2   = quantile(dairy_gram_ea, probs= 0.5),
             p3   = quantile(dairy_gram_ea, probs= 0.75)) %>% 
+  knitr::kable(digits = 2)
+
+ahs_medic_inc2 %>% 
+  group_by(nutsseeds_gram_ea_4) %>% 
+  summarize(n    = n(),
+            pct  = n() / nrow(ahs_medic_inc2) * 100,
+            mean = mean(nutsseeds_gram_ea),
+            p1   = quantile(nutsseeds_gram_ea, probs= 0.25),
+            p2   = quantile(nutsseeds_gram_ea, probs= 0.5),
+            p3   = quantile(nutsseeds_gram_ea, probs= 0.75)) %>% 
+  knitr::kable(digits = 2)
+
+ahs_medic_inc2 %>% 
+  group_by(totalveg_gram_ea_4) %>% 
+  summarize(n    = n(),
+            pct  = n() / nrow(ahs_medic_inc2) * 100,
+            mean = mean(totalveg_gram_ea),
+            p1   = quantile(totalveg_gram_ea, probs= 0.25),
+            p2   = quantile(totalveg_gram_ea, probs= 0.5),
+            p3   = quantile(totalveg_gram_ea, probs= 0.75)) %>% 
+  knitr::kable(digits = 2)
+
+ahs_medic_inc2 %>% 
+  group_by(fruits_gram_ea_4) %>% 
+  summarize(n    = n(),
+            pct  = n() / nrow(ahs_medic_inc2) * 100,
+            mean = mean(fruits_gram_ea),
+            p1   = quantile(fruits_gram_ea, probs= 0.25),
+            p2   = quantile(fruits_gram_ea, probs= 0.5),
+            p3   = quantile(fruits_gram_ea, probs= 0.75)) %>% 
+  knitr::kable(digits = 2)
+
+ahs_medic_inc2 %>% 
+  group_by(legumes_gram_ea_4) %>% 
+  summarize(n    = n(),
+            pct  = n() / nrow(ahs_medic_inc2) * 100,
+            mean = mean(legumes_gram_ea),
+            p1   = quantile(legumes_gram_ea, probs= 0.25),
+            p2   = quantile(legumes_gram_ea, probs= 0.5),
+            p3   = quantile(legumes_gram_ea, probs= 0.75)) %>% 
+  knitr::kable(digits = 2)
+
+ahs_medic_inc2 %>% 
+  group_by(refgrains_gram_ea_4) %>% 
+  summarize(n    = n(),
+            pct  = n() / nrow(ahs_medic_inc2) * 100,
+            mean = mean(refgrains_gram_ea),
+            p1   = quantile(refgrains_gram_ea, probs= 0.25),
+            p2   = quantile(refgrains_gram_ea, probs= 0.5),
+            p3   = quantile(refgrains_gram_ea, probs= 0.75)) %>% 
+  knitr::kable(digits = 2)
+
+ahs_medic_inc2 %>% 
+  group_by(whole_mixed_grains_gram_ea_4) %>% 
+  summarize(n    = n(),
+            pct  = n() / nrow(ahs_medic_inc2) * 100,
+            mean = mean(whole_mixed_grains_gram_ea),
+            p1   = quantile(whole_mixed_grains_gram_ea, probs= 0.25),
+            p2   = quantile(whole_mixed_grains_gram_ea, probs= 0.5),
+            p3   = quantile(whole_mixed_grains_gram_ea, probs= 0.75)) %>% 
   knitr::kable(digits = 2)
 ```
 
@@ -658,8 +748,13 @@ tablevars <- c("agecat",
                "egg_freq",
                "meat_gram_ea_4",
                "fish_gram_ea_4",
-               # "eggs_gram_ea_4",
-               "dairy_gram_ea_4"
+               "dairy_gram_ea_4",
+               "totalveg_gram_ea_4",
+               "fruits_gram_ea_4",
+               "refgrains_gram_ea_4",
+               "whole_mixed_grains_gram_ea_4",
+               "nutsseeds_gram_ea_4",
+               "legumes_gram_ea_4"
                )
 
 ahs_medic_inc2 %>% 
@@ -703,8 +798,13 @@ tablevars <- c("ALZH_DEMEN_YN2",
                "como_cancers",
                "meat_gram_ea_4",
                "fish_gram_ea_4",
-               # "eggs_gram_ea_4",
-               "dairy_gram_ea_4"
+               "dairy_gram_ea_4",
+               "totalveg_gram_ea_4",
+               "fruits_gram_ea_4",
+               "refgrains_gram_ea_4",
+               "whole_mixed_grains_gram_ea_4",
+               "nutsseeds_gram_ea_4",
+               "legumes_gram_ea_4"
                )
 
 ahs_medic_inc2 %>% 
