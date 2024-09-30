@@ -984,12 +984,85 @@ ahs_medic_inc2 %>%
   CreateTableOne(vars = "eggbetrf", strata = "eggbetra", data = .)
 
 
+# Age at diagnosis: Mean 83.2 years, Median 84.0 years
+ahs_medic_inc2 %>% 
+  filter(ALZH_DEMEN_YN == "Yes") %>% 
+  select(ageout) %>% 
+  summary()
+
+# Age at diagnosis by egg group
+ahs_medic_inc2 %>% 
+  filter(ALZH_DEMEN_YN == "Yes") %>% 
+  group_by(egg_freq) %>% 
+  summarize(mean_age_at_dx = mean(ageout),
+            sd_age_at_dx   = sd(ageout),
+            median_age_at_dx = median(ageout))
+
+ahs_medic_inc2 %>% 
+  filter(ALZH_DEMEN_YN == "Yes") %>% 
+  mutate(age_at_dx = ageout) %>% 
+  CreateTableOne("age_at_dx", strata = "egg_freq", data = .)
+
+ahs_medic_inc2 %>% 
+  filter(ALZH_DEMEN_YN == "Yes") %>% 
+  mutate(age_at_dx = ageout) %>% 
+  CreateTableOne("age_at_dx", strata = "egg_freq", data = .) %>% 
+  print(nonnorm = "age_at_dx")
+
+# Age at medicare enrollment
+age_medicare_labels <- c("<60", "60-64", "65", "66-69", "70-74", "75-79", "80-84", "85-89", "90+")
+
+medicare_age <- all_msbf_long %>% 
+  select(BENE_ID, AGE_AT_END_REF_YR) %>% 
+  semi_join(ahs_medic_inc2, by = "BENE_ID") %>% 
+  group_by(BENE_ID) %>% 
+  slice(1) %>% 
+  ungroup() %>% 
+  rename(age_medicare_cont = AGE_AT_END_REF_YR) %>% 
+  mutate(age_medicare_cat = cut(age_medicare_cont, 
+                                breaks = c(53, 60, 65, 66, 70, 75, 80, 85, 90, 107),
+                                labels = age_medicare_labels,
+                                include.lowest = TRUE, 
+                                right = FALSE))
+
+medicare_age %>% 
+  group_by(age_medicare_cont) %>% 
+  tally() %>% 
+  mutate(pct = n / sum(n) * 100) %>% 
+  print(n = Inf)
+
+
+medicare_age %>% 
+  group_by(age_medicare_cat) %>% 
+  tally() %>% 
+  mutate(pct = n / sum(n) * 100) %>% 
+  print(n = Inf)
+
+ahs_medic_inc2 <- ahs_medic_inc2 %>% 
+  inner_join(medicare_age, by = "BENE_ID")
+
+# How many diagnosed before medicare enrollment? -- 780 cases
+ahs_medic_inc2 %>% 
+  as_tibble() %>% 
+  filter(ALZH_DEMEN_YN == "Yes") %>% 
+  mutate(age_at_dx = ifelse(ALZH_DEMEN_YN == "Yes", ageout, NA)) %>% 
+  filter(age_medicare_cont >= age_at_dx) %>% 
+  select(analysisid, agein, age_at_dx, age_medicare_cont) 
+  
+ahs_medic_inc2 %>% 
+  as_tibble() %>% 
+  filter(ALZH_DEMEN_YN == "Yes") %>%
+  select(analysisid, ALZH_DEMEN_EVER, BENE_BIRTH_DT) %>%
+  mutate(age_at_dx = interval(BENE_BIRTH_DT, ALZH_DEMEN_EVER) / years(1)) 
+
 # Table 1 -----------------------------------------------------------------
 
 # Variables to be included
 tablevars <- c("agecat", 
                # "bene_age_at_end_2008", 
-               "bene_age_at_end_2020", 
+               "bene_age_at_end_2020",
+               "age_medicare_cat", 
+               "age_medicare_cont",
                "bene_sex_F", 
                "rti_race3", 
                "marital", 
@@ -1053,6 +1126,7 @@ tablevars <- c("ALZH_DEMEN_YN2",
                "agecat", 
                # "bene_age_at_end_2008", 
                "bene_age_at_end_2020", 
+               "age_at_dx",
                "bene_sex_F", 
                "rti_race3", 
                "marital", 
@@ -1091,6 +1165,7 @@ tablevars <- c("ALZH_DEMEN_YN2",
 
 out <- ahs_medic_inc2 %>% 
   mutate(ALZH_DEMEN_YN2 = fct_recode(ALZH_DEMEN_YN, "Non-case" = "No", "Case" = "Yes")) %>% 
+  mutate(age_at_dx = ifelse(ALZH_DEMEN_YN == "Yes", ageout, NA)) %>% 
   CreateTableOne(tablevars, strata = "egg_freq", data = ., addOverall = TRUE)
 print(out, showAllLevels = TRUE)
 

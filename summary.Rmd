@@ -488,6 +488,25 @@ levels(ahs_medic_inc2$legumes_gram_ea_4)   <- c("<33.6 g/d", "33.6-<61.0 g/d", "
 levels(ahs_medic_inc2$refgrains_gram_ea_4)          <- c("<37.8 g/d", "37.8-<79.1 g/d", "79.1-<144 g/d", "144+ g/d")
 levels(ahs_medic_inc2$whole_mixed_grains_gram_ea_4) <- c("<144 g/d", "144-<208 g/d", "208-<358 g/d", "358+ g/d")
 
+# Age at medicare enrollment
+age_medicare_labels <- c("<60", "60-64", "65", "66-69", "70-74", "75-79", "80-84", "85-89", "90+")
+
+medicare_age <- all_msbf_long %>% 
+  select(BENE_ID, AGE_AT_END_REF_YR) %>% 
+  semi_join(ahs_medic_inc2, by = "BENE_ID") %>% 
+  group_by(BENE_ID) %>% 
+  slice(1) %>% 
+  ungroup() %>% 
+  rename(age_medicare_cont = AGE_AT_END_REF_YR) %>% 
+  mutate(age_medicare_cat = cut(age_medicare_cont, 
+                                breaks = c(53, 60, 65, 66, 70, 75, 80, 85, 90, 107),
+                                labels = age_medicare_labels,
+                                include.lowest = TRUE, 
+                                right = FALSE))
+
+ahs_medic_inc2 <- ahs_medic_inc2 %>% 
+  inner_join(medicare_age, by = "BENE_ID")
+
 ```
 
 ## Aim
@@ -722,6 +741,8 @@ ahs_medic_inc2 %>%
 tablevars <- c("agecat", 
                # "bene_age_at_end_2008", 
                "bene_age_at_end_2020", 
+               "age_medicare_cat", 
+               "age_medicare_cont",
                "bene_sex_F", 
                "rti_race3", 
                "marital", 
@@ -773,6 +794,7 @@ tablevars <- c("ALZH_DEMEN_YN2",
                "agecat", 
                # "bene_age_at_end_2008", 
                "bene_age_at_end_2020", 
+               "age_at_dx",
                "bene_sex_F", 
                "rti_race3", 
                "marital", 
@@ -809,6 +831,7 @@ tablevars <- c("ALZH_DEMEN_YN2",
 
 ahs_medic_inc2 %>% 
   mutate(ALZH_DEMEN_YN2 = fct_recode(ALZH_DEMEN_YN, "Non-case" = "No", "Case" = "Yes")) %>% 
+  mutate(age_at_dx = ifelse(ALZH_DEMEN_YN == "Yes", ageout, NA)) %>% 
   # CreateTableOne(tablevars, strata = "eggs_gram_ea_4", data = ., addOverall = TRUE) %>% 
   CreateTableOne(tablevars, strata = "egg_freq", data = ., addOverall = TRUE) %>% 
   print(showAllLevels = TRUE) %>% 
