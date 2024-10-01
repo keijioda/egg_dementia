@@ -1010,38 +1010,69 @@ ahs_medic_inc2 %>%
   print(nonnorm = "age_at_dx")
 
 # Age at medicare enrollment
-age_medicare_labels <- c("<60", "60-64", "65", "66-69", "70-74", "75-79", "80-84", "85-89", "90+")
 
-medicare_age <- all_msbf_long %>% 
-  select(BENE_ID, AGE_AT_END_REF_YR) %>% 
-  semi_join(ahs_medic_inc2, by = "BENE_ID") %>% 
-  group_by(BENE_ID) %>% 
-  slice(1) %>% 
-  ungroup() %>% 
-  rename(age_medicare_cont = AGE_AT_END_REF_YR) %>% 
+age_medicare_labels <- c("<50", "50-54", "55-59", "60-63", "64", "65", "66-69", "70+")
+
+ahs_medic_inc2 %>% 
+  mutate(COVSTART = ymd(COVSTART)) %>% 
+  mutate(age_medicare_cont = interval(BENE_BIRTH_DT, COVSTART) / years(1)) %>% 
   mutate(age_medicare_cat = cut(age_medicare_cont, 
-                                breaks = c(53, 60, 65, 66, 70, 75, 80, 85, 90, 107),
+                                breaks = c(-Inf, 50, 55, 60, 64, 65, 66, 70, Inf),
+                                labels = age_medicare_labels,
+                                include.lowest = TRUE, 
+                                right = FALSE)) %>% 
+  group_by(age_medicare_cat) %>% 
+  tally()
+
+ahs_medic_inc2 <- ahs_medic_inc2 %>% 
+  mutate(COVSTART = ymd(COVSTART)) %>% 
+  mutate(age_medicare_cont = interval(BENE_BIRTH_DT, COVSTART) / years(1)) %>% 
+  mutate(age_medicare_cat = cut(age_medicare_cont, 
+                                breaks = c(-Inf, 50, 55, 60, 64, 65, 66, 70, Inf),
                                 labels = age_medicare_labels,
                                 include.lowest = TRUE, 
                                 right = FALSE))
 
-medicare_age %>% 
-  group_by(age_medicare_cont) %>% 
-  tally() %>% 
-  mutate(pct = n / sum(n) * 100) %>% 
-  print(n = Inf)
-
-
-medicare_age %>% 
+ahs_medic_inc2 %>% 
   group_by(age_medicare_cat) %>% 
   tally() %>% 
-  mutate(pct = n / sum(n) * 100) %>% 
-  print(n = Inf)
+  mutate(pct = n / sum(n) * 100)
 
-ahs_medic_inc2 <- ahs_medic_inc2 %>% 
-  inner_join(medicare_age, by = "BENE_ID")
+ahs_medic_inc2 %>%   
+  filter(age_medicare_cont < 50) %>% 
+  select(analysisid, BENE_BIRTH_DT, COVSTART, age_medicare_cont)
 
-# How many diagnosed before medicare enrollment? -- 780 cases
+
+# medicare_age <- all_msbf_long %>% 
+#   select(BENE_ID, AGE_AT_END_REF_YR) %>% 
+#   semi_join(ahs_medic_inc2, by = "BENE_ID") %>% 
+#   group_by(BENE_ID) %>% 
+#   slice(1) %>% 
+#   ungroup() %>% 
+#   rename(age_medicare_cont = AGE_AT_END_REF_YR) %>% 
+#   mutate(age_medicare_cat = cut(age_medicare_cont, 
+#                                 breaks = c(53, 60, 65, 66, 70, 75, 80, 85, 90, 107),
+#                                 labels = age_medicare_labels,
+#                                 include.lowest = TRUE, 
+#                                 right = FALSE))
+# 
+# medicare_age %>% medicare_age %>% BENE_BIRTH_DT
+#   group_by(age_medicare_cont) %>% 
+#   tally() %>% 
+#   mutate(pct = n / sum(n) * 100) %>% 
+#   print(n = Inf)
+# 
+# 
+# medicare_age %>% 
+#   group_by(age_medicare_cat) %>% 
+#   tally() %>% 
+#   mutate(pct = n / sum(n) * 100) %>% 
+#   print(n = Inf)
+# 
+# ahs_medic_inc2 <- ahs_medic_inc2 %>% 
+#   inner_join(medicare_age, by = "BENE_ID")
+
+# How many diagnosed before medicare enrollment? -- only 1 case
 ahs_medic_inc2 %>% 
   as_tibble() %>% 
   filter(ALZH_DEMEN_YN == "Yes") %>% 
@@ -1049,12 +1080,6 @@ ahs_medic_inc2 %>%
   filter(age_medicare_cont >= age_at_dx) %>% 
   select(analysisid, agein, age_at_dx, age_medicare_cont) 
   
-ahs_medic_inc2 %>% 
-  as_tibble() %>% 
-  filter(ALZH_DEMEN_YN == "Yes") %>%
-  select(analysisid, ALZH_DEMEN_EVER, BENE_BIRTH_DT) %>%
-  mutate(age_at_dx = interval(BENE_BIRTH_DT, ALZH_DEMEN_EVER) / years(1)) 
-
 # Table 1 -----------------------------------------------------------------
 
 # Variables to be included
@@ -1167,6 +1192,14 @@ out <- ahs_medic_inc2 %>%
   mutate(ALZH_DEMEN_YN2 = fct_recode(ALZH_DEMEN_YN, "Non-case" = "No", "Case" = "Yes")) %>% 
   mutate(age_at_dx = ifelse(ALZH_DEMEN_YN == "Yes", ageout, NA)) %>% 
   CreateTableOne(tablevars, strata = "egg_freq", data = ., addOverall = TRUE)
+print(out, showAllLevels = TRUE)
+
+out <- ahs_medic_inc2 %>% 
+  filter(ALZH_DEMEN_YN == "Yes") %>% 
+  mutate(ALZH_DEMEN_YN2 = fct_recode(ALZH_DEMEN_YN, "Non-case" = "No", "Case" = "Yes")) %>% 
+  mutate(age_at_dx = ifelse(ALZH_DEMEN_YN == "Yes", ageout, NA)) %>% 
+  CreateTableOne("age_at_dx", strata = "egg_freq", data = ., addOverall = TRUE)
+
 print(out, showAllLevels = TRUE)
 
 # Cox models --------------------------------------------------------------
