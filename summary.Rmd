@@ -849,13 +849,116 @@ ahs_medic_inc2 %>%
   * Age at entry was calculated based on the return date of AHS-2 questionnaire
   * Those who died during the follow-up were censored at the date of death verified in Medicare data
   * Those who were diagnosed with dementia or Alzheimer's disease after 6 months following study enrollment were identified as incident cases and their age at diagnosis was calculated. 
-  * The mean follow-up years was 14.8 years (median 16.5 years)
+    * The mean follow-up years was 14.8 years (median 16.5 years)
+  * The main exposure variable of interest was the frequency of egg intake.
+    * In the AHS-2 baseline questionnaire, the frequency of egg intake was measured in 9 categories, as shown in "Dietary variables" section above.
+    * Based on its distribution, egg frequency was re-categorized into 5 groups (see the "Descriptive table" section)
+  * Other food group variables were categorized into 4 intake group, as descrived in "Dietary variable." section.
+  
 * Table XX:
   * Unadjusted hazard ratio (HR) is shown in the first column of Table XX for each covariate
   * ~~Multivariable model 1 includes all covariates except for total energy intake (Unit: per 100 kcal/day) and 4 food group vairables~~
   * ~~In Multivariable model 2, dietary pattern was removed and all 4 food group variables were added, while also adjusting for total energy intake.~~ 
 * Trend p-values were displayed for ordinal variables (education, BMI categories, exercise, sleep hours and food group intakes) in multivariable models.
 * The proportional hazards assumption was assessed with visual inspection of plots of the scaled Schoenfeld residuals for each covariate. None of the covariates showed severe violation of the assumption.
+
+## Cox models with cubic spline terms for food group variables
+
+* In the Cox models above:
+  * Five categories of egg frequency were used.
+  * Other food group variables were categorized into 4 intake groups.
+
+* Instead of using these dietary variables as categorical, energy-adjusted gram weights of intake were entered into the models as continuous. Since the previous Cox models suggest a non-linear association between egg intake and our disease outcome, restricted cubic spline of energy-adjusted egg intake (gram/day) was used to model the nonlinearity. For other food groups, restricted cubic splines were employed if there is a statistically significant non-linear term; otherwise only the linear term was entered into the model.
+  * The number of knots in the cubic splines was set to 5 knots.
+  
+* For each those dietary variables that indicate a non-linear association, a plot of adjusted hazard ratio was produced to visualize how HR changes over a range of intake. 
+  * For eggs, an intake of 10 gram/day was chosen to be its reference value of the HR plot.
+  * Total vegetable intake was another dietary variable showing a significant non-linearity. Its reference value was set to 300 gram/day.
+  * HR plots from the final model were shown below:
+
+
+```{r cubic_spline, echo = FALSE, , warning = FALSE, message = FALSE}
+
+# Models with cubic spline ------------------------------------------------
+
+library(rms)
+
+ahs_medic_inc2 <- ahs_medic_inc2 %>% 
+  mutate(bene_sex_F = relevel(bene_sex_F, ref="F"),
+         bmicat     = relevel(bmicat, ref="Normal"),
+         inc_demen  = ifelse(ALZH_DEMEN_YN == "Yes", 1, 0),
+         kcal100    = kcal / 100)
+
+# Model 3b: Fit with linear terms if non-linearity non-sig
+ahs_medic_inc3 <- ahs_medic_inc2 %>% 
+        mutate(meat_gram_ea = meat_gram_ea / 100) %>% 
+        mutate(fish_gram_ea = fish_gram_ea / 100) %>% 
+        mutate(dairy_gram_ea = dairy_gram_ea / 100) %>% 
+        mutate(fruits_gram_ea = fruits_gram_ea / 100) %>% 
+        mutate(refgrains_gram_ea = refgrains_gram_ea / 100) %>% 
+        mutate(whole_mixed_grains_gram_ea = whole_mixed_grains_gram_ea / 100) %>% 
+        mutate(nutsseeds_gram_ea = nutsseeds_gram_ea / 100) %>% 
+        mutate(legumes_gram_ea = legumes_gram_ea / 100)
+
+# Restricted cubic spline
+dd <- datadist(ahs_medic_inc3)
+options(datadist='dd')
+
+mv3b <- cph(Surv(agein, ageout, inc_demen) ~ bene_sex_F + rti_race3 + marital + educyou2 + 
+              bmicat + exercise + sleephrs2 + smokecat + alccat +
+              como_depress + como_disab + como_diabetes + como_cvd + como_hypert + como_hyperl + como_resp + 
+              como_anemia + como_kidney + como_hypoth + como_cancers +
+              kcal100 + 
+              rcs(eggs_gram_ea, parms = 5) +
+              rcs(totalveg_gram_ea, parms = 5) + 
+              meat_gram_ea +
+              fish_gram_ea +
+              dairy_gram_ea +
+              fruits_gram_ea +
+              refgrains_gram_ea +
+              whole_mixed_grains_gram_ea +
+              nutsseeds_gram_ea +
+              legumes_gram_ea, 
+            data = ahs_medic_inc3)
+
+# pdf("RCS_egg_MV3.pdf", width = 6.5, height = 5)
+Predict(mv3b, eggs_gram_ea = seq(0, 50, by = 1), fun = exp, ref.zero = TRUE) %>% 
+  ggplot() +
+  geom_line(linewidth = 1.3) +
+  # scale_x_continuous(limits = c(0, 100), transform = "pseudo_log")+
+  scale_y_continuous(breaks = 9:14 / 10) +
+  # geom_vline(xintercept = 10, linetype = 2) +
+  geom_hline(yintercept =  1, linetype = 2) +
+  coord_cartesian(ylim = c(0.85, 1.35)) +
+  labs(x = "Egg intake (energy-adjusted, gram/day)",
+       y = "Adjusted hazard ratio (95% CI)",
+       caption = "",
+       title = "Model 3: Cubic spline for egg intake") +
+  theme(text=element_text(size = 14))
+# dev.off()
+
+
+# Change the reference to 10 g/d
+dd$limits$totalveg_gram_ea[2] <- 300
+mv3b <- update(mv3b)
+
+# pdf("RCS_veg_MV3.pdf", width = 6.5, height = 5)
+Predict(mv3b, totalveg_gram_ea = seq(0, 1000, by = 10), fun = exp, ref.zero = TRUE) %>% 
+  ggplot() +
+  geom_line(linewidth = 1.3) +
+  # scale_x_continuous(limits = c(0, 100), transform = "pseudo_log")+
+  scale_y_continuous(breaks = 9:17 / 10) +
+  # geom_vline(xintercept = 10, linetype = 2) +
+  geom_hline(yintercept =  1, linetype = 2) +
+  coord_cartesian(ylim = c(0.85, 1.7)) +
+  labs(x = "Vegetable intake (energy-adjusted, gram/day)",
+       y = "Adjusted hazard ratio (95% CI)",
+       caption = "",
+       title = "Model 3: Cubic spline for vegetable intake") +
+  theme(text=element_text(size = 14))
+# dev.off()
+
+```
 
 ## Notes for additional analyses
 

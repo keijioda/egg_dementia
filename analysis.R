@@ -1,6 +1,6 @@
 
 # Required libraries
-pacs <- c("tidyverse", "readxl", "lubridate", "tableone", "gridExtra", "survival")
+pacs <- c("tidyverse", "readxl", "lubridate", "tableone", "gridExtra", "survival", "rms")
 sapply(pacs, require, character.only = TRUE)
 
 
@@ -1269,7 +1269,7 @@ summary(mv_mod_tmp)
 
 # Model 1b: Demog + Lifestyle + Comorbidity + Egg
 mv1b_mod <- coxph(Surv(agein, ageout, inc_demen) ~ bene_sex_F + rti_race3 + marital + educyou2 +
-                  bmicat + exercise + sleephrs2 + smokecat + alccat +  +
+                  bmicat + exercise + sleephrs2 + smokecat + alccat + 
                   como_depress + como_disab + como_diabetes + como_cvd + como_hypert + como_hyperl + como_resp + 
                   como_anemia + como_kidney + como_hypoth + como_cancers +
                   # kcal100 + eggs_gram_ea_4, data = ahs_medic_inc2, method = "efron")
@@ -1379,7 +1379,212 @@ summary(mv_mod_tmp)
 
 
 
+# Models with cubic spline ------------------------------------------------
 
+# Restricted cubic spline
+dd <- datadist(ahs_medic_inc2)
+options(datadist='dd')
+
+# Model 1
+# egg_gram_ea: Cubic spline with 5 knots
+mv1 <- cph(Surv(agein, ageout, inc_demen) ~ bene_sex_F + rti_race3 + marital + educyou2 + 
+           bmicat + exercise + sleephrs2 + smokecat + alccat + kcal100 + 
+           rcs(eggs_gram_ea, parms = 5), data = ahs_medic_inc2)
+
+# Model info
+specs(mv1)
+
+# Coefs
+mv1
+cbind(coef(mv1), confint(mv1)) %>% exp()
+anova(mv1)
+
+# Egg intake: basic statistics
+summary(ahs_medic_inc2$eggs_gram_ea)
+
+# Change the reference to 10 g/d
+dd$limits$eggs_gram_ea[2] <- 10
+mv1 <- update(mv1)
+Predict(mv1, eggs_gram_ea = seq(0, 80, by = 1), fun = exp, ref.zero = TRUE) 
+
+# pdf("RCS_egg_MV1.pdf", width = 6.5, height = 5)
+Predict(mv1, eggs_gram_ea = seq(0, 50, by = 1), fun = exp, ref.zero = TRUE) %>% 
+  ggplot() +
+  geom_line(linewidth = 1.3) +
+  # scale_x_continuous(limits = c(0, 100), transform = "pseudo_log")+
+  scale_y_continuous(breaks = 9:14 / 10) +
+  # geom_vline(xintercept = 10, linetype = 2) +
+  geom_hline(yintercept =  1, linetype = 2) +
+  coord_cartesian(ylim = c(0.85, 1.35)) +
+  labs(x = "Egg intake (energy-adjusted, gram/day)",
+       y = "Adjusted hazard ratio (95% CI)",
+       caption = "",
+       title = "Model 1: Cubic spline for egg intake") +
+  theme(text=element_text(size = 14))
+# dev.off()
+
+# https://www.rdocumentation.org/packages/rms/versions/6.8-2/topics/ggplot.Predict
+
+update(mv1, .~. - educyou2 + as.numeric(educyou))    %>% anova()
+update(mv1, .~. - bmicat + as.numeric(bmicat))       %>% anova()
+update(mv1, .~. - exercise + as.numeric(exercise))   %>% anova()
+update(mv1, .~. - sleephrs2 + as.numeric(sleephrs2)) %>% anova()
+
+# Model 2 
+# egg_gram_ea: Cubic spline with 5 knots
+mv2 <- cph(Surv(agein, ageout, inc_demen) ~ bene_sex_F + rti_race3 + marital + educyou2 + 
+             bmicat + exercise + sleephrs2 + smokecat + alccat +
+             como_depress + como_disab + como_diabetes + como_cvd + como_hypert + como_hyperl + como_resp + 
+             como_anemia + como_kidney + como_hypoth + como_cancers +
+             kcal100 + rcs(eggs_gram_ea, parms = 5), data = ahs_medic_inc2)
+
+# Model info
+specs(mv2)
+
+# Coefs
+mv2
+cbind(coef(mv2), confint(mv2)) %>% exp()
+anova(mv2)
+
+# Egg intake: basic statistics
+summary(ahs_medic_inc2$eggs_gram_ea)
+
+# Change the reference to 10 g/d
+dd$limits$eggs_gram_ea[2] <- 10
+mv2 <- update(mv2)
+Predict(mv2, eggs_gram_ea = seq(0, 80, by = 1), fun = exp, ref.zero = TRUE) 
+
+# pdf("RCS_egg_MV2.pdf", width = 6.5, height = 5)
+Predict(mv2, eggs_gram_ea = seq(0, 50, by = 1), fun = exp, ref.zero = TRUE) %>% 
+  ggplot() +
+  geom_line(linewidth = 1.3) +
+  # scale_x_continuous(limits = c(0, 100), transform = "pseudo_log")+
+  scale_y_continuous(breaks = 9:14 / 10) +
+  # geom_vline(xintercept = 10, linetype = 2) +
+  geom_hline(yintercept =  1, linetype = 2) +
+  coord_cartesian(ylim = c(0.85, 1.35)) +
+  labs(x = "Egg intake (energy-adjusted, gram/day)",
+       y = "Adjusted hazard ratio (95% CI)",
+       caption = "",
+       title = "Model 2: Cubic spline for egg intake") +
+  theme(text=element_text(size = 14))
+# dev.off()
+
+update(mv2, .~. - educyou2 + as.numeric(educyou))    %>% anova()
+update(mv2, .~. - bmicat + as.numeric(bmicat))       %>% anova()
+update(mv2, .~. - exercise + as.numeric(exercise))   %>% anova()
+update(mv2, .~. - sleephrs2 + as.numeric(sleephrs2)) %>% anova()
+
+
+# Model 3a: Examine non-linearity
+mv3a <- cph(Surv(agein, ageout, inc_demen) ~ bene_sex_F + rti_race3 + marital + educyou2 + 
+             bmicat + exercise + sleephrs2 + smokecat + alccat +
+             como_depress + como_disab + como_diabetes + como_cvd + como_hypert + como_hyperl + como_resp + 
+             como_anemia + como_kidney + como_hypoth + como_cancers +
+             kcal100 + 
+             rcs(eggs_gram_ea, parms = 5) +
+             rcs(meat_gram_ea, parms = 5) +
+             rcs(fish_gram_ea, parms = 5) +
+             rcs(dairy_gram_ea, parms = 5) + 
+             rcs(totalveg_gram_ea, parms = 5) + 
+             rcs(fruits_gram_ea, parms = 5) + 
+             rcs(refgrains_gram_ea, parms = 5) + 
+             rcs(whole_mixed_grains_gram_ea, parms = 5) + 
+             rcs(nutsseeds_gram_ea, parms = 5) + 
+             rcs(legumes_gram_ea, parms = 5), 
+           data = ahs_medic_inc2)
+
+anova(mv3a)
+
+# Model 3b: Fit with linear terms if non-linearity non-sig
+ahs_medic_inc3 <- ahs_medic_inc2 %>% 
+        mutate(meat_gram_ea = meat_gram_ea / 100) %>% 
+        mutate(fish_gram_ea = fish_gram_ea / 100) %>% 
+        mutate(dairy_gram_ea = dairy_gram_ea / 100) %>% 
+        mutate(fruits_gram_ea = fruits_gram_ea / 100) %>% 
+        mutate(refgrains_gram_ea = refgrains_gram_ea / 100) %>% 
+        mutate(whole_mixed_grains_gram_ea = whole_mixed_grains_gram_ea / 100) %>% 
+        mutate(nutsseeds_gram_ea = nutsseeds_gram_ea / 100) %>% 
+        mutate(legumes_gram_ea = legumes_gram_ea / 100)
+
+mv3b <- cph(Surv(agein, ageout, inc_demen) ~ bene_sex_F + rti_race3 + marital + educyou2 + 
+              bmicat + exercise + sleephrs2 + smokecat + alccat +
+              como_depress + como_disab + como_diabetes + como_cvd + como_hypert + como_hyperl + como_resp + 
+              como_anemia + como_kidney + como_hypoth + como_cancers +
+              kcal100 + 
+              rcs(eggs_gram_ea, parms = 5) +
+              rcs(totalveg_gram_ea, parms = 5) + 
+              meat_gram_ea +
+              fish_gram_ea +
+              dairy_gram_ea +
+              fruits_gram_ea +
+              refgrains_gram_ea +
+              whole_mixed_grains_gram_ea +
+              nutsseeds_gram_ea +
+              legumes_gram_ea, 
+            data = ahs_medic_inc3)
+
+# Model info
+specs(mv3b)
+
+# Coefs
+mv3b
+cbind(coef(mv3b), confint(mv3b)) %>% exp()
+anova(mv3b)
+
+# Egg intake: basic statistics
+summary(ahs_medic_inc2$eggs_gram_ea)
+summary(ahs_medic_inc2$refgrains_gram_ea)
+summary(ahs_medic_inc2$whole_mixed_grains_gram_ea)
+summary(ahs_medic_inc2$nutsseeds_gram_ea)
+
+# Hazard ratio
+Predict(mv3b, eggs_gram_ea = seq(0, 80, by = 1), fun = exp, ref.zero = TRUE) 
+
+# pdf("RCS_egg_MV3.pdf", width = 6.5, height = 5)
+Predict(mv3b, eggs_gram_ea = seq(0, 50, by = 1), fun = exp, ref.zero = TRUE) %>% 
+  ggplot() +
+  geom_line(linewidth = 1.3) +
+  # scale_x_continuous(limits = c(0, 100), transform = "pseudo_log")+
+  scale_y_continuous(breaks = 9:14 / 10) +
+  # geom_vline(xintercept = 10, linetype = 2) +
+  geom_hline(yintercept =  1, linetype = 2) +
+  coord_cartesian(ylim = c(0.85, 1.35)) +
+  labs(x = "Egg intake (energy-adjusted, gram/day)",
+       y = "Adjusted hazard ratio (95% CI)",
+       caption = "",
+       title = "Model 3: Cubic spline for egg intake") +
+  theme(text=element_text(size = 14))
+# dev.off()
+
+# vegetables
+summary(ahs_medic_inc2$totalveg_gram_ea)
+
+# Change the reference to 10 g/d
+dd$limits$totalveg_gram_ea[2] <- 300
+mv3b <- update(mv3b)
+Predict(mv3b, totalveg_gram_ea = seq(0, 800, by = 100), fun = exp, ref.zero = TRUE) 
+
+# pdf("RCS_veg_MV3.pdf", width = 6.5, height = 5)
+Predict(mv3b, totalveg_gram_ea = seq(0, 1000, by = 10), fun = exp, ref.zero = TRUE) %>% 
+  ggplot() +
+  geom_line(linewidth = 1.3) +
+  # scale_x_continuous(limits = c(0, 100), transform = "pseudo_log")+
+  scale_y_continuous(breaks = 9:17 / 10) +
+  # geom_vline(xintercept = 10, linetype = 2) +
+  geom_hline(yintercept =  1, linetype = 2) +
+  coord_cartesian(ylim = c(0.85, 1.7)) +
+  labs(x = "Vegetable intake (energy-adjusted, gram/day)",
+       y = "Adjusted hazard ratio (95% CI)",
+       caption = "",
+       title = "Model 3: Cubic spline for vegetable intake") +
+  theme(text=element_text(size = 14))
+# dev.off()
+
+update(mv3b, .~. -educyou2 + as.numeric(educyou))     %>% anova()
+update(mv3b, .~. - bmicat + as.numeric(bmicat))       %>% anova()
+update(mv3b, .~. - exercise + as.numeric(exercise))   %>% anova()
+update(mv3b, .~. - sleephrs2 + as.numeric(sleephrs2)) %>% anova()
 
 
 # For models with food group (remove dietary pattern)
