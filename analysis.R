@@ -1,6 +1,6 @@
 
 # Required libraries
-pacs <- c("tidyverse", "readxl", "lubridate", "tableone", "gridExtra", "survival", "rms")
+pacs <- c("tidyverse", "readxl", "lubridate", "tableone", "gridExtra", "survival")
 sapply(pacs, require, character.only = TRUE)
 
 
@@ -1381,6 +1381,8 @@ summary(mv_mod_tmp)
 
 # Models with cubic spline ------------------------------------------------
 
+library(rms)
+
 # Restricted cubic spline
 dd <- datadist(ahs_medic_inc2)
 options(datadist='dd')
@@ -1540,6 +1542,9 @@ summary(ahs_medic_inc2$nutsseeds_gram_ea)
 
 # Hazard ratio
 Predict(mv3b, eggs_gram_ea = seq(0, 80, by = 1), fun = exp, ref.zero = TRUE) 
+Predict(mv3b, eggs_gram_ea = c(0, 20, 30, 40, 50), fun = exp, ref.zero = TRUE) %>% 
+  rename(HR = yhat) %>% 
+  select(eggs_gram_ea, HR, lower, upper)
 
 # pdf("RCS_egg_MV3.pdf", width = 6.5, height = 5)
 Predict(mv3b, eggs_gram_ea = seq(0, 50, by = 1), fun = exp, ref.zero = TRUE) %>% 
@@ -1564,6 +1569,9 @@ summary(ahs_medic_inc2$totalveg_gram_ea)
 dd$limits$totalveg_gram_ea[2] <- 300
 mv3b <- update(mv3b)
 Predict(mv3b, totalveg_gram_ea = seq(0, 800, by = 100), fun = exp, ref.zero = TRUE) 
+Predict(mv3b, totalveg_gram_ea = c(0, 100, 200, 400, 800), fun = exp, ref.zero = TRUE) %>% 
+  rename(HR = yhat) %>% 
+  select(totalveg_gram_ea, HR, lower, upper)
 
 # pdf("RCS_veg_MV3.pdf", width = 6.5, height = 5)
 Predict(mv3b, totalveg_gram_ea = seq(0, 1000, by = 10), fun = exp, ref.zero = TRUE) %>% 

@@ -568,6 +568,28 @@ Egg dementia study
 
 ![](summary_files/figure-gfm/cubic_spline-1.png)<!-- -->![](summary_files/figure-gfm/cubic_spline-2.png)<!-- -->
 
+- Tables below shows adjusted HR for some representative values of egg
+  gram intake (reference = 10 gram/day).
+
+| eggs_gram_ea |   HR | lower | upper |
+|-------------:|-----:|------:|------:|
+|            0 | 1.23 |  1.11 |  1.36 |
+|           20 | 0.98 |  0.91 |  1.06 |
+|           30 | 1.00 |  0.91 |  1.09 |
+|           40 | 1.02 |  0.93 |  1.12 |
+|           50 | 1.05 |  0.94 |  1.16 |
+
+- Tables below shows adjusted HR for some representative values of
+  vegetable gram intake (reference = 300 gram/day).
+
+| totalveg_gram_ea |   HR | lower | upper |
+|-----------------:|-----:|------:|------:|
+|                0 | 1.41 |  1.18 |  1.67 |
+|              100 | 1.12 |  1.03 |  1.22 |
+|              200 | 0.96 |  0.90 |  1.03 |
+|              400 | 1.04 |  0.98 |  1.10 |
+|              800 | 1.01 |  0.91 |  1.13 |
+
 ## Notes for additional analyses
 
 - Combine semi- and non-vegetarians into one group and make this as
