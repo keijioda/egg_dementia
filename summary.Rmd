@@ -973,7 +973,7 @@ Predict(mv3b, eggs_gram_ea = c(0, 20, 30, 40, 50), fun = exp, ref.zero = TRUE) %
 * Tables below shows adjusted HR for some representative values of vegetable gram intake (reference = 300 gram/day).
 
 ```{r cubic_spline_HR_veg, echo = FALSE, , warning = FALSE, message = FALSE}
-Predict(mv3b, totalveg_gram_ea = c(0, 100, 200, 400, 800), fun = exp, ref.zero = TRUE) %>% 
+Predict(mv3b, totalveg_gram_ea = c(50, 100, 200, 400, 800), fun = exp, ref.zero = TRUE) %>% 
   rename(HR = yhat) %>% 
   select(totalveg_gram_ea, HR, lower, upper) %>% 
   knitr::kable(digits = 2)
