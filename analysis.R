@@ -3,43 +3,42 @@
 pacs <- c("tidyverse", "readxl", "lubridate", "tableone", "gridExtra", "survival")
 sapply(pacs, require, character.only = TRUE)
 
-
 # Medicare crosswalk ------------------------------------------------------
 
 # Read crosswalk file: n = 70.968
 crosswalk <- read_fwf("./Data/12172/2022/ssn_bene_xwalk_res000058038_req012172_2022.dat",
                       fwf_widths(c(9, 15, 1, 1, 1), c("ORIG_SSN", "BENE_ID", "SSN_MATCH", "SEX_MATCH", "DOB_MATCH")))
 
-# How many matches? -- 52,704 subjects (74%)
-# There were 115 invalid SSN
-crosswalk %>% 
-  group_by(SSN_MATCH) %>% 
-  tally() %>% 
-  mutate(pct = n / sum(n) * 100)
-
-# Gender mismatch -- 824 subjects (1.6%)
-crosswalk %>% 
-  filter(SSN_MATCH == 1) %>% 
-  group_by(SEX_MATCH) %>% 
-  tally() %>% 
-  mutate(pct = n / sum(n) * 100)
-
-# DOB mismatch -- 3331 subjects (6.3%)
-crosswalk %>% 
-  filter(SSN_MATCH == 1) %>% 
-  group_by(DOB_MATCH) %>% 
-  tally() %>% 
-  mutate(pct = n / sum(n) * 100)
-
-# How many have both gender and DOB mismatch -- 787 subjects (1.5%)
-crosswalk %>% 
-  filter(SSN_MATCH == 1, SEX_MATCH == 0, DOB_MATCH == 0) %>%
-  nrow()
-
-# How many have either gender OR DOB mismatch -- 3368 subjects (6.4%)
-crosswalk %>% 
-  filter(SSN_MATCH == 1 & (SEX_MATCH == 0 | DOB_MATCH == 0)) %>%
-  nrow()
+# # How many matches? -- 52,704 subjects (74%)
+# # There were 115 invalid SSN
+# crosswalk %>% 
+#   group_by(SSN_MATCH) %>% 
+#   tally() %>% 
+#   mutate(pct = n / sum(n) * 100)
+# 
+# # Gender mismatch -- 824 subjects (1.6%)
+# crosswalk %>% 
+#   filter(SSN_MATCH == 1) %>% 
+#   group_by(SEX_MATCH) %>% 
+#   tally() %>% 
+#   mutate(pct = n / sum(n) * 100)
+# 
+# # DOB mismatch -- 3331 subjects (6.3%)
+# crosswalk %>% 
+#   filter(SSN_MATCH == 1) %>% 
+#   group_by(DOB_MATCH) %>% 
+#   tally() %>% 
+#   mutate(pct = n / sum(n) * 100)
+# 
+# # How many have both gender and DOB mismatch -- 787 subjects (1.5%)
+# crosswalk %>% 
+#   filter(SSN_MATCH == 1, SEX_MATCH == 0, DOB_MATCH == 0) %>%
+#   nrow()
+# 
+# # How many have either gender OR DOB mismatch -- 3368 subjects (6.4%)
+# crosswalk %>% 
+#   filter(SSN_MATCH == 1 & (SEX_MATCH == 0 | DOB_MATCH == 0)) %>%
+#   nrow()
 
 # Extract matched BENE_IDs
 all_matched_bene_ids <- crosswalk %>% 
@@ -50,29 +49,29 @@ mismatches <- crosswalk %>%
   filter(SSN_MATCH == 1 & (SEX_MATCH == 0 | DOB_MATCH == 0)) %>%
   select(BENE_ID)
   
-# There are two duplicates in BENE_IDs...
-all_matched_bene_ids %>% 
-  summarize(n = n_distinct(BENE_ID))
+# # There are two duplicates in BENE_IDs...
+# all_matched_bene_ids %>% 
+#   summarize(n = n_distinct(BENE_ID))
 
 dup_BENE_IDs <- all_matched_bene_ids %>% 
   group_by(BENE_ID) %>% 
   summarize(n = sum(n())) %>% 
   filter(n > 1)
 
-all_matched_bene_ids %>% 
-  filter(BENE_ID %in% dup_BENE_IDs$BENE_ID)
-
-# There are 106 SSN duplicates ???
-all_matched_bene_ids %>% 
-  summarize(n = n_distinct(ORIG_SSN))
+# all_matched_bene_ids %>% 
+#   filter(BENE_ID %in% dup_BENE_IDs$BENE_ID)
+# 
+# # There are 106 SSN duplicates ???
+# all_matched_bene_ids %>% 
+#   summarize(n = n_distinct(ORIG_SSN))
 
 dup_SSNs <- all_matched_bene_ids %>% 
   group_by(ORIG_SSN) %>% 
   summarize(n = sum(n())) %>% 
   filter(n > 1)
 
-all_matched_bene_ids %>% 
-  filter(ORIG_SSN %in% dup_SSNs$ORIG_SSN)
+# all_matched_bene_ids %>% 
+#   filter(ORIG_SSN %in% dup_SSNs$ORIG_SSN)
 
 # BENE_IDs that need to be removed:
 # Gender/DOB mismatch
@@ -105,7 +104,7 @@ all_msbf <- fname %>%
   lapply(\(x) anti_join(x, exclude_BENE_IDs)) %>% 
   setNames(year)
 
-all_msbf %>% sapply(nrow)
+# all_msbf %>% sapply(nrow)
 
 # Long format over years
 all_msbf_long <- all_msbf %>% 
@@ -122,10 +121,10 @@ all_msbf_bene_ids <- all_msbf_long %>%
   select(BENE_ID) %>% 
   distinct()
 
-nrow(all_msbf_bene_ids)
-
-all_msbf_bene_ids %>% 
-  left_join(crosswalk, by = "BENE_ID")
+# nrow(all_msbf_bene_ids)
+# 
+# all_msbf_bene_ids %>% 
+#   left_join(crosswalk, by = "BENE_ID")
 
 # 4546 matched beneficiaries were never appeared in MSBF files
 bene_ids_no_show <- all_matched_bene_ids %>% 
@@ -134,53 +133,53 @@ bene_ids_no_show <- all_matched_bene_ids %>%
 
 nrow(bene_ids_no_show)
 
-# Age at the last year of appearance
-all_msbf_long %>% 
-  group_by(BENE_ID) %>% 
-  slice(n()) %>% 
-  mutate(AgeCat = cut(AGE_AT_END_REF_YR, breaks = c(0, 3:12 * 10), right = FALSE)) %>% 
-  group_by(AgeCat) %>% 
-  tally() %>% 
-  mutate(pct = n / sum(n) * 100)
-
-# Young medicare beneficiaries: What is the reason for entitlement?
-# Mostly due to disability (~95%)
-all_msbf_long %>% 
-  group_by(BENE_ID) %>% 
-  slice(n()) %>% 
-  filter(AGE_AT_END_REF_YR < 65) %>% 
-  select(BENE_ID, BENE_ENROLLMT_REF_YR, AGE_AT_END_REF_YR, ENTLMT_RSN_CURR) %>% 
-  group_by(ENTLMT_RSN_CURR) %>% 
-  tally() %>% 
-  mutate(pct = n / sum(n) * 100)
-
-# Current Reason for Entitlement Code
-all_msbf_long %>% 
-  group_by(BENE_ID) %>% 
-  slice(n()) %>% 
-  mutate(ENTLMT_RSN_CURR = factor(ENTLMT_RSN_CURR, levels = 0:3, labels = c("OASI", "DIB", "ESRD", "DIB & ESRD"))) %>% 
-  group_by(ENTLMT_RSN_CURR) %>% 
-  tally() %>% 
-  mutate(pct = n / sum(n) * 100)
-
-# Sex/race at the last year of appearance
-all_msbf_long %>% 
-  group_by(BENE_ID) %>% 
-  slice(n()) %>% 
-  group_by(SEX_IDENT_CD) %>% 
-  tally() %>% 
-  mutate(pct = n / sum(n) * 100)
-
-# How many died during 2008-2020
-# 13,218 (29.6%) died
-all_msbf_long %>%
-  group_by(BENE_ID) %>% 
-  slice(n()) %>% 
-  mutate(Dead = ifelse(is.na(BENE_DEATH_DT), 0, 1),
-         Dead = factor(Dead, levels = 0:1, labels = c("Alive", "Dead"))) %>% 
-  group_by(Dead) %>% 
-  tally() %>% 
-  mutate(pct = n / sum(n) * 100)
+# # Age at the last year of appearance
+# all_msbf_long %>% 
+#   group_by(BENE_ID) %>% 
+#   slice(n()) %>% 
+#   mutate(AgeCat = cut(AGE_AT_END_REF_YR, breaks = c(0, 3:12 * 10), right = FALSE)) %>% 
+#   group_by(AgeCat) %>% 
+#   tally() %>% 
+#   mutate(pct = n / sum(n) * 100)
+# 
+# # Young medicare beneficiaries: What is the reason for entitlement?
+# # Mostly due to disability (~95%)
+# all_msbf_long %>% 
+#   group_by(BENE_ID) %>% 
+#   slice(n()) %>% 
+#   filter(AGE_AT_END_REF_YR < 65) %>% 
+#   select(BENE_ID, BENE_ENROLLMT_REF_YR, AGE_AT_END_REF_YR, ENTLMT_RSN_CURR) %>% 
+#   group_by(ENTLMT_RSN_CURR) %>% 
+#   tally() %>% 
+#   mutate(pct = n / sum(n) * 100)
+# 
+# # Current Reason for Entitlement Code
+# all_msbf_long %>% 
+#   group_by(BENE_ID) %>% 
+#   slice(n()) %>% 
+#   mutate(ENTLMT_RSN_CURR = factor(ENTLMT_RSN_CURR, levels = 0:3, labels = c("OASI", "DIB", "ESRD", "DIB & ESRD"))) %>% 
+#   group_by(ENTLMT_RSN_CURR) %>% 
+#   tally() %>% 
+#   mutate(pct = n / sum(n) * 100)
+# 
+# # Sex/race at the last year of appearance
+# all_msbf_long %>% 
+#   group_by(BENE_ID) %>% 
+#   slice(n()) %>% 
+#   group_by(SEX_IDENT_CD) %>% 
+#   tally() %>% 
+#   mutate(pct = n / sum(n) * 100)
+# 
+# # How many died during 2008-2020
+# # 13,218 (29.6%) died
+# all_msbf_long %>%
+#   group_by(BENE_ID) %>% 
+#   slice(n()) %>% 
+#   mutate(Dead = ifelse(is.na(BENE_DEATH_DT), 0, 1),
+#          Dead = factor(Dead, levels = 0:1, labels = c("Alive", "Dead"))) %>% 
+#   group_by(Dead) %>% 
+#   tally() %>% 
+#   mutate(pct = n / sum(n) * 100)
 
 # N deaths = 13,218
 n_deaths <- all_msbf_long %>%
@@ -230,56 +229,56 @@ all_cc_bene_ids <- all_cc_long %>%
 
 nrow(all_cc_bene_ids)
 
-# Alzheimer/dementia status at the last year of appearance
-# Alzheimer only: n = 3356
-all_cc_long %>% 
-  mutate(ALZH_YN    = ifelse(is.na(ALZH_EVER), 0, 1)) %>% 
-  group_by(BENE_ID) %>% 
-  slice(n()) %>% 
-  group_by(ALZH_YN) %>% 
-  tally() %>% 
-  mutate(pct = n / sum(n) * 100) 
-
-# Alzheimer/dementia: n = 8074
-all_cc_long %>% 
-  mutate(ALZH_DEMEN_YN = ifelse(is.na(ALZH_DEMEN_EVER), 0, 1)) %>% 
-  group_by(BENE_ID) %>% 
-  slice(n()) %>% 
-  group_by(ALZH_DEMEN_YN) %>% 
-  tally() %>% 
-  mutate(pct = n / sum(n) * 100) 
-
-# Both Alzheimer and dementia: n = 8074
-all_cc_long %>% 
-  mutate(ALZH_DEMEN_YN = ifelse(is.na(ALZH_DEMEN_EVER) & is.na(ALZH_EVER), 0, 1)) %>% 
-  group_by(BENE_ID) %>% 
-  slice(n()) %>% 
-  group_by(ALZH_DEMEN_YN) %>% 
-  tally() %>% 
-  mutate(pct = n / sum(n) * 100) 
-
-# Year of Alzheimer/dementia diagnosis at the last year of appearance
-# Alzheimer only
-all_cc_long %>% 
-  filter(!is.na(ALZH_EVER)) %>% 
-  mutate(ALZH_DX_YR = substr(ALZH_EVER, 1, 4)) %>% 
-  group_by(BENE_ID) %>% 
-  slice(n()) %>% 
-  group_by(ALZH_DX_YR) %>% 
-  tally() %>% 
-  mutate(pct = n / sum(n) * 100) %>% 
-  print(n = Inf)
-
-# Both Alzheimer and dementia
-all_cc_long %>% 
-  filter(!is.na(ALZH_DEMEN_EVER)) %>% 
-  mutate(ALZH_DEMEN_DX_YR = substr(ALZH_DEMEN_EVER, 1, 4)) %>% 
-  group_by(BENE_ID) %>% 
-  slice(n()) %>% 
-  group_by(ALZH_DEMEN_DX_YR) %>% 
-  tally() %>% 
-  mutate(pct = n / sum(n) * 100) %>% 
-  print(n = Inf)
+# # Alzheimer/dementia status at the last year of appearance
+# # Alzheimer only: n = 3356
+# all_cc_long %>% 
+#   mutate(ALZH_YN    = ifelse(is.na(ALZH_EVER), 0, 1)) %>% 
+#   group_by(BENE_ID) %>% 
+#   slice(n()) %>% 
+#   group_by(ALZH_YN) %>% 
+#   tally() %>% 
+#   mutate(pct = n / sum(n) * 100) 
+# 
+# # Alzheimer/dementia: n = 8074
+# all_cc_long %>% 
+#   mutate(ALZH_DEMEN_YN = ifelse(is.na(ALZH_DEMEN_EVER), 0, 1)) %>% 
+#   group_by(BENE_ID) %>% 
+#   slice(n()) %>% 
+#   group_by(ALZH_DEMEN_YN) %>% 
+#   tally() %>% 
+#   mutate(pct = n / sum(n) * 100) 
+# 
+# # Both Alzheimer and dementia: n = 8074
+# all_cc_long %>% 
+#   mutate(ALZH_DEMEN_YN = ifelse(is.na(ALZH_DEMEN_EVER) & is.na(ALZH_EVER), 0, 1)) %>% 
+#   group_by(BENE_ID) %>% 
+#   slice(n()) %>% 
+#   group_by(ALZH_DEMEN_YN) %>% 
+#   tally() %>% 
+#   mutate(pct = n / sum(n) * 100) 
+# 
+# # Year of Alzheimer/dementia diagnosis at the last year of appearance
+# # Alzheimer only
+# all_cc_long %>% 
+#   filter(!is.na(ALZH_EVER)) %>% 
+#   mutate(ALZH_DX_YR = substr(ALZH_EVER, 1, 4)) %>% 
+#   group_by(BENE_ID) %>% 
+#   slice(n()) %>% 
+#   group_by(ALZH_DX_YR) %>% 
+#   tally() %>% 
+#   mutate(pct = n / sum(n) * 100) %>% 
+#   print(n = Inf)
+# 
+# # Both Alzheimer and dementia
+# all_cc_long %>% 
+#   filter(!is.na(ALZH_DEMEN_EVER)) %>% 
+#   mutate(ALZH_DEMEN_DX_YR = substr(ALZH_DEMEN_EVER, 1, 4)) %>% 
+#   group_by(BENE_ID) %>% 
+#   slice(n()) %>% 
+#   group_by(ALZH_DEMEN_DX_YR) %>% 
+#   tally() %>% 
+#   mutate(pct = n / sum(n) * 100) %>% 
+#   print(n = Inf)
 
 
 # AHS-2 Medicare link file ------------------------------------------------
@@ -287,28 +286,28 @@ all_cc_long %>%
 # AHS-2 analysis ID: N = 51,917
 ahs <- read_csv("./Data/MedicareMatches2022.csv")
 
-# There are 103 analysis IDs that appears twice
-# There are 226 NULL values on analysis ID
-ahs %>% 
-  group_by(AnalysisID) %>%
-  tally() %>% 
-  filter(n > 1) %>% 
-  print(n = Inf)
-
-ahs %>% filter(AnalysisID == "NULL")
-
-# Remove NULL and those appears twice
-ahs %>% 
-  group_by(AnalysisID) %>%
-  tally() %>% 
-  filter(n > 1) %>% 
-  summarize(sum = sum(n))
-
-ahs %>% 
-  group_by(AnalysisID) %>%
-  tally() %>% 
-  filter(n > 1) %>% 
-  print(n = Inf)
+# # There are 103 analysis IDs that appears twice
+# # There are 226 NULL values on analysis ID
+# ahs %>% 
+#   group_by(AnalysisID) %>%
+#   tally() %>% 
+#   filter(n > 1) %>% 
+#   print(n = Inf)
+# 
+# ahs %>% filter(AnalysisID == "NULL")
+# 
+# # Remove NULL and those appears twice
+# ahs %>% 
+#   group_by(AnalysisID) %>%
+#   tally() %>% 
+#   filter(n > 1) %>% 
+#   summarize(sum = sum(n))
+# 
+# ahs %>% 
+#   group_by(AnalysisID) %>%
+#   tally() %>% 
+#   filter(n > 1) %>% 
+#   print(n = Inf)
  
 # 104 analysis IDs (103 duplicates + NAs) to be removed
 exclude_analysisIDs <- ahs %>% 
@@ -379,6 +378,11 @@ optout <- read_csv("./Data/OptOutAnalysisIDs.csv") %>% setNames("analysisid")
 
 # n = 383 to be excluded
 ahsdata2 %>% semi_join(optout) %>% nrow()
+
+# Those who live outside US
+# None found in the AHS data above 
+outside_us <- read_csv("./Data/outside_us.csv")
+ahsdata2 %>% semi_join(outside_us, by = "analysisid") %>% nrow()
 
 # Remove opt-outs, yielding n = 87,668
 ahsdata3 <- ahsdata2 %>% 
@@ -1432,3 +1436,93 @@ par(mfrow=c(2, 4), mar=c(c(5.1, 5.1, 4.1, 2.1)))
   plot.zph("como_kidneyYes",     ylim = c(-4, 4))
   plot.zph("como_cancersYes",    ylim = c(-4, 4))
 par(mfrow=c(1, 1))
+
+
+
+# Misc analyses -----------------------------------------------------------
+
+# Egg intake from HHF6: n = 49,447
+hhf6 <- readRDS("./Data/raw-hhf6-20180418.rds")
+names(hhf6)
+
+hhf6 %>% select(QID)
+
+# QID to analysis ID map: n = 96,247
+QID_to_analysisID <- read_csv("./Data/AHS-data-SUBJECT_IDS-20201116(in).csv") %>% 
+  select(qid, analysisid)
+
+# Add analysis ID to HHF6
+hhf6_v2 <- hhf6 %>%
+  mutate(qid = as.numeric(QID)) %>% 
+  left_join(QID_to_analysisID, by = "qid")
+
+# HHF6 egg intake
+egg_lab <- c("Never", "1-3x/mo", "1x/wk", "2-4x/wk", "5-6x/wk", "1x/day", "2-3x/day", "4-5x/day", "6+x/day")
+
+hhf6 %>% 
+  group_by(P3_Q8_EGGS) %>% 
+  tally() %>% 
+  mutate(pct = n / sum(n) * 100)
+
+hhf6 %>% 
+  filter(!P3_Q8_EGGS %in% c(" ", "*")) %>% 
+  mutate(P3_Q8_EGGS = as.numeric(P3_Q8_EGGS)) %>%
+  mutate(P3_Q8_EGGS = factor(P3_Q8_EGGS, labels =  egg_lab)) %>% 
+  group_by(P3_Q8_EGGS) %>% 
+  tally() %>% 
+  mutate(pct = n / sum(n) * 100)
+
+# Merge with AHS data; n = 23,843
+hhf6_merged <- hhf6_v2 %>% 
+  inner_join(ahs_medic_inc2, by = "analysisid") %>% 
+  mutate(P3_Q8_EGGS = ifelse(!P3_Q8_EGGS %in% c(" ", "*"), as.numeric(P3_Q8_EGGS), NA)) %>%
+  mutate(P3_Q8_EGGS = factor(P3_Q8_EGGS, labels =  egg_lab)) %>%  
+  mutate(eggbetrf = factor(eggbetrf, labels = egg_lab))  
+
+nrow(hhf6_merged)
+nrow(hhf6_merged) / nrow(ahs_medic_inc2)
+
+hhf6_merged %>% 
+  # filter(!is.na(P3_Q8_EGGS)) %>%
+  mutate(P3_Q8_EGGS = as.numeric(P3_Q8_EGGS)) %>%
+  mutate(P3_Q8_EGGS = factor(P3_Q8_EGGS, labels =  egg_lab)) %>%
+  group_by(P3_Q8_EGGS) %>% 
+  tally() %>% 
+  mutate(pct = n / sum(n) * 100)
+
+hhf6_merged %>%
+  group_by(eggbetrf) %>% 
+  tally() %>% 
+  mutate(pct = n / sum(n) * 100)
+
+cr <- hhf6_merged %>%
+  select(P3_Q8_EGGS, eggbetrf) %>% 
+  table()
+cr
+
+# Percent agreement: Main diagonals only, 39%
+sum(diag(cr)) / sum(cr)
+
+# Percent agreement: Main diagonals plus one above and one below: 74%
+sum(pracma::Diag(cr, k =  0), 
+    pracma::Diag(cr, k =  1),
+    pracma::Diag(cr, k = -1)
+    ) / sum(cr)
+
+# Fleiss-Cohen Kappa: 0.463
+# vcd::Kappa(cr, weights = "Equal-Spacing")
+vcd::Kappa(cr, weights = "Fleiss-Cohen")
+
+# Spearman correlation: 0.498
+hhf6_merged %>%
+  select(P3_Q8_EGGS, eggbetrf) %>%
+  mutate(P3_Q8_EGGS = as.numeric(P3_Q8_EGGS),
+         eggbetrf   = as.numeric(eggbetrf)) %>% 
+  cor(method = "spearman", use = "complete.obs")
+
+# Kendall tau: 0.422
+hhf6_merged %>%
+  select(P3_Q8_EGGS, eggbetrf) %>%
+  mutate(P3_Q8_EGGS = as.numeric(P3_Q8_EGGS),
+         eggbetrf   = as.numeric(eggbetrf)) %>% 
+  cor(method = "kendall", use = "complete.obs")

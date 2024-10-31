@@ -533,26 +533,62 @@ Egg dementia study
 |              400 | 1.00 |  0.94 |  1.06 |
 |              800 | 0.95 |  0.85 |  1.05 |
 
+## Supplementary analysis
+
+### Comparison of egg intake at baseline and at HHF6 questionnaire
+
+- Frequency of egg intake was compared between the baseline
+  questionnaire and HHF version 6
+  - In HHF6, the frequency of egg intake was asked in the same format as
+    in the baseline questionnaire (9 options)
+  - Among our analytic sample, there are n = 23,843 subjects (60.7%) who
+    returned HHF6 questionnaire
+  - After excluding n = 741 invalid responses on egg frequency, there
+    were n = 23,102 in the crosstab below
+  - (Columns are egg frequency at baseline; Rows are from HHF6)
+- The percentage of exact agreement (# in the main diagonals / total)
+  was 39%. The percent of adjacent agreement (including those one
+  above/below the main diagonals as agreement) was 74%. The Fleiss-Cohen
+  weighted Kappa was 0.46.
+
+|          | Never | 1-3x/mo | 1x/wk | 2-4x/wk | 5-6x/wk | 1x/day | 2-3x/day | 4-5x/day | 6+x/day |
+|:---------|------:|--------:|------:|--------:|--------:|-------:|---------:|---------:|--------:|
+| Never    |  3129 |     832 |   314 |     299 |      37 |     21 |        8 |        0 |       1 |
+| 1-3x/mo  |  1430 |    1799 |   773 |     658 |      64 |     36 |       10 |        0 |       0 |
+| 1x/wk    |   779 |    1417 |  1186 |    1074 |      77 |     32 |       15 |        1 |       0 |
+| 2-4x/wk  |   706 |    1512 |  1567 |    2650 |     328 |    108 |       50 |        4 |       0 |
+| 5-6x/wk  |    90 |     166 |   210 |     471 |     110 |     40 |       16 |        1 |       0 |
+| 1x/day   |    78 |     115 |   108 |     277 |      69 |     66 |       23 |        0 |       0 |
+| 2-3x/day |    29 |      35 |    47 |     102 |      36 |     24 |       41 |        1 |       3 |
+| 4-5x/day |     3 |       3 |     3 |       3 |       2 |      1 |        0 |        1 |       0 |
+| 6+x/day  |     2 |       1 |     1 |       4 |       1 |      2 |        0 |        0 |       0 |
+
 ## Notes for additional analyses
 
-- Combine semi- and non-vegetarians into one group and make this as
-  reference – Done.
+- ~~Combine semi- and non-vegetarians into one group and make this as
+  reference – Done.~~
 
 - Run the following models:
 
-  - MV1 + egg (retain dietary groups) – Done. HRs very similar to those
-    in Model 1 or 2.
-  - Separate meat into two food group variables, beef and poultry, while
-    excluding pork from the model – Still waiting for data from DS.
+  - ~~MV1 + egg (retain dietary groups) – Done. HRs very similar to
+    those in Model 1 or 2.~~
+  - ~~Separate meat into two food group variables, beef and poultry,
+    while excluding pork from the model – Still waiting for data from
+    DS.~~
   - Explore interactions between meat (as a whole) and egg intake – The
     interaction term was not significant at all (p = 0.69).
 
 - TO DO
 
-  - Get meat sub-group variables (both gram and kcal intake) from Lars?
-    – see below
-  - Incorporate VB12, omega-3, and folate from lupus data
-  - Need to rewrite datasets section
+  - ~~Get meat sub-group variables (both gram and kcal intake) from
+    Lars? – see below~~
+  - ~~Incorporate VB12, omega-3, and folate from lupus data – For a
+    separate paper~~
+  - Get data with correct dairy intake
+  - Get all imputed datasets and run analysis for pooled HR estimates
+  - Get HHF6 data to compare egg intake with baseline – Done
+  - Exclude those subjects who live outside the US for some time during
+    follow-up – Done, none found in the data
 
 - Concerns:
 
@@ -560,9 +596,10 @@ Egg dementia study
     race](https://resdac.org/cms-data/variables/research-triangle-institute-rti-race-code):
     what to do with others? Exclude them?~~
   - Egg eaters among vegans? – misclassification
-  - Definition of physical activity: Look for Vichuda’s paper
-  - Separate hypertension and hyperlipidemia – Done
-  - Include anemia as a comorbidity variable – Done
+  - ~~Definition of physical activity: Look for Vichuda’s paper –
+    Changed exercise min/wk~~
+  - ~~Separate hypertension and hyperlipidemia – Done~~
+  - ~~Include anemia as a comorbidity variable – Done~~
   - ~~Semi-veg: exclude them entirely, or keep it combined with
     non-veg?~~
 
@@ -572,13 +609,13 @@ Egg dementia study
     - Egg intake and dementia (1st paper)
     - Dietary pattern and dementia (2nd paper)
   - For the first paper;
-    - For egg intake, use its frequency – need to collapse
-    - Need other food groups: vegetables, fruits, grains, nuts/seeds,
-      legumes – get data from GF (along with meat as food group)
+    - \~~For egg intake, use its frequency – need to collapse~
+    - ~~Need other food groups: vegetables, fruits, grains, nuts/seeds,
+      legumes – get data from GF (along with meat as food group)~~
     - ~~Need nutrient variables: Carotenoids (LYCO, LUTE, LZ, ZEA)? – JO
       to think about~~
-    - Crosstab b/w egg and meat intake – Done
-    - Mean/percentiles by egg intake group – Done
+    - ~~Crosstab b/w egg and meat intake – Done~~
+    - ~~Mean/percentiles by egg intake group – Done~~
     - ~~Re-label egg intake groups~~
     - Model with and without comobidity
       - Model 1a: Demographics and lifestyle + Egg
