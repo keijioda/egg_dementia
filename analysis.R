@@ -413,6 +413,11 @@ ahs_medic <- msbf_last_seen %>%
 
 nrow(ahs_medic)
 
+# ahs_medic %>% 
+#   select(analysisid) %>% 
+#   arrange(analysisid) %>% 
+#   write_csv("./Data/AnalysisID_after_merging.csv")
+
 # Apply inclusion/exclusion criteria --------------------------------------
 
 # Remove if AGE_AT_END_REF_YR < 65 (n = 1336)
@@ -702,8 +707,8 @@ ahs_medic_inc2 <- ahs_medic_inc2 %>%
 levels(ahs_medic_inc2$meat_gram_ea_4)               <- c("None",     "<11 g/d",      "11-<32 g/d",   "32+ g/d")
 levels(ahs_medic_inc2$fish_gram_ea_4)               <- c("None",     "<9 g/d",       "9-<18 g/d",    "18+ g/d")
 # levels(ahs_medic_inc2$dairy_gram_ea_4)              <- c("<2150 g/d", "2150-2990 g/d", "2990-<3450 g/d", "3450+ g/d")
-levels(ahs_medic_inc2$totalveg_gram_ea_4)           <- c("<185 g/d", "185-<270 g/d", "270-<380 g/d", "378+ g/d")
-levels(ahs_medic_inc2$fruits_gram_ea_4)             <- c("<170 g/d", "170-<280 g/d", "280-<420 g/d", "419+ g/d")
+levels(ahs_medic_inc2$totalveg_gram_ea_4)           <- c("<185 g/d", "185-<270 g/d", "270-<380 g/d", "380+ g/d")
+levels(ahs_medic_inc2$fruits_gram_ea_4)             <- c("<170 g/d", "170-<280 g/d", "280-<420 g/d", "420+ g/d")
 levels(ahs_medic_inc2$nutsseeds_gram_ea_4)          <- c("<9 g/d",   "9-<19 g/d",    "19-<33 g/d",   "33+ g/d")
 levels(ahs_medic_inc2$refgrains_gram_ea_4)          <- c("<40 g/d",  "40-<83 g/d",   "83-<150 g/d",  "150+ g/d")
 levels(ahs_medic_inc2$whole_mixed_grains_gram_ea_4) <- c("<120 g/d", "120-<210 g/d", "210-<350 g/d", "350+ g/d")

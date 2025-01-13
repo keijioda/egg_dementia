@@ -172,6 +172,15 @@ ahsdata2 %>% semi_join(optout) %>% nrow()
 ahsdata3 <- ahsdata2 %>% 
   anti_join(optout, by = "analysisid")
 
+# Add dairy data ----------------------------------------------------------
+
+# Dairy data from GF
+# n = 41,009
+dairy <- read_csv("./Data/Jisoo_dairy.csv") %>% select(-1)
+
+# Merge with AHS data
+ahsdata4 <- ahsdata3 %>% 
+  inner_join(dairy, by = "analysisid")
 
 # Merge AHS data with Medicare --------------------------------------------
 
@@ -191,7 +200,8 @@ ahs_medic <- msbf_last_seen %>%
   inner_join(ahs_dup_removed %>% 
                rename(BENE_ID = Bene_ID) %>% 
                mutate(analysisid = parse_number(AnalysisID)), by = "BENE_ID") %>% 
-  inner_join(ahsdata3, by = "analysisid") %>% 
+  # inner_join(ahsdata3, by = "analysisid") %>% 
+  inner_join(ahsdata4, by = "analysisid") %>% 
   ungroup()
 
 # Apply inclusion/exclusion criteria --------------------------------------
@@ -327,7 +337,8 @@ source("myfunc.R")
 ahs_medic_inc2$meat_gram_ea      <- kcal_adjust(meat_gramdiet,  kcal, data = ahs_medic_inc2, log = TRUE)
 ahs_medic_inc2$fish_gram_ea      <- kcal_adjust(fish_gramdiet,  kcal, data = ahs_medic_inc2, log = TRUE)
 ahs_medic_inc2$eggs_gram_ea      <- kcal_adjust(eggs_gramdiet,  kcal, data = ahs_medic_inc2, log = TRUE)
-ahs_medic_inc2$dairy_gram_ea     <- kcal_adjust(dairy_gramdiet, kcal, data = ahs_medic_inc2, log = TRUE)
+# ahs_medic_inc2$dairy_gram_ea     <- kcal_adjust(dairy_gramdiet, kcal, data = ahs_medic_inc2, log = TRUE)
+ahs_medic_inc2$alldairy2_gram_ea <- kcal_adjust(alldairy2_gramdiet, kcal, data = ahs_medic_inc2, log = TRUE)
 ahs_medic_inc2$nutsseeds_gram_ea <- kcal_adjust(nutsseeds_gramdiet, kcal, data = ahs_medic_inc2, log = TRUE)
 ahs_medic_inc2$totalveg_gram_ea  <- kcal_adjust(totalveg_gramdiet, kcal, data = ahs_medic_inc2, log = TRUE)
 ahs_medic_inc2$fruits_gram_ea    <- kcal_adjust(fruits_gramdiet, kcal, data = ahs_medic_inc2, log = TRUE)
@@ -336,27 +347,47 @@ ahs_medic_inc2$refgrains_gram_ea    <- kcal_adjust(refgrains_gramdiet, kcal, dat
 ahs_medic_inc2$whole_mixed_grains_gram_ea    <- kcal_adjust(whole_mixed_grains_gramdiet, kcal, data = ahs_medic_inc2, log = TRUE)
 
 # Quartiles for food groups
-ea_diet_vars <- c("dairy_gram_ea", "nutsseeds_gram_ea", "totalveg_gram_ea", "fruits_gram_ea", 
-                  "refgrains_gram_ea", "whole_mixed_grains_gram_ea", "legumes_gram_ea")
-get_percentile <- function(var, data = ahs_medic_inc2) cutQ(data[[var]], na.rm = TRUE, p = 0:4/4)
-test <- lapply(ea_diet_vars, get_percentile)
-names(test) <- paste0(ea_diet_vars, "_4")
-ahs_medic_inc2 <- cbind(ahs_medic_inc2, test)
-rm(test)
+# ea_diet_vars <- c("dairy_gram_ea", "nutsseeds_gram_ea", "totalveg_gram_ea", "fruits_gram_ea", 
+#                   "refgrains_gram_ea", "whole_mixed_grains_gram_ea", "legumes_gram_ea")
+# get_percentile <- function(var, data = ahs_medic_inc2) cutQ(data[[var]], na.rm = TRUE, p = 0:4/4)
+# test <- lapply(ea_diet_vars, get_percentile)
+# names(test) <- paste0(ea_diet_vars, "_4")
+# ahs_medic_inc2 <- cbind(ahs_medic_inc2, test)
+# rm(test)
+# 
+# ahs_medic_inc2 <- ahs_medic_inc2 %>% 
+#   mutate(meat_gram_ea_4 = cut(meat_gram_ea, breaks = c(-Inf, 0, 11, 32, Inf), right = TRUE), 
+#          fish_gram_ea_4 = cut(fish_gram_ea, breaks = c(-Inf, 0,  8.6, 17.2, Inf), right = TRUE))
+# 
+# levels(ahs_medic_inc2$meat_gram_ea_4)  <- c("None", "<11 g/d", "11-<32 g/d", "32+ g/d")
+# levels(ahs_medic_inc2$fish_gram_ea_4)  <- c("None", "<8.6 g/d", "8.6-<17.2 g/d", "17.2+ g/d")
+# levels(ahs_medic_inc2$dairy_gram_ea_4) <- c("<2150 g/d", "2150-2990 g/d", "2990-<3450 g/d", "3450+ g/d")
+# levels(ahs_medic_inc2$totalveg_gram_ea_4)  <- c("<184 g/d", "184-<269 g/d", "269-<378 g/d", "378+ g/d")
+# levels(ahs_medic_inc2$fruits_gram_ea_4)    <- c("<168 g/d", "168-<280 g/d", "280-<419 g/d", "419+ g/d")
+# levels(ahs_medic_inc2$nutsseeds_gram_ea_4) <- c("<8.9 g/d", "8.9-<18.4 g/d", "18.4-<32.1 g/d", "32.1+ g/d")
+# levels(ahs_medic_inc2$legumes_gram_ea_4)   <- c("<33.4 g/d", "33.4-<61.1 g/d", "61.1-<99.2 g/d", "99.2+ g/d")
+# levels(ahs_medic_inc2$refgrains_gram_ea_4)          <- c("<38.4 g/d", "38.4-<80.5 g/d", "80.5-<146 g/d", "146+ g/d")
+# levels(ahs_medic_inc2$whole_mixed_grains_gram_ea_4) <- c("<117 g/d", "117-<209 g/d", "209-<352 g/d", "352+ g/d")
 
 ahs_medic_inc2 <- ahs_medic_inc2 %>% 
   mutate(meat_gram_ea_4 = cut(meat_gram_ea, breaks = c(-Inf, 0, 11, 32, Inf), right = TRUE), 
-         fish_gram_ea_4 = cut(fish_gram_ea, breaks = c(-Inf, 0,  8.6, 17.2, Inf), right = TRUE))
+         fish_gram_ea_4 = cut(fish_gram_ea, breaks = c(-Inf, 0,  9, 18, Inf), right = TRUE),
+         alldairy2_gram_ea_4 = cut(alldairy2_gram_ea, breaks = c(-Inf, 0,  50, 180, Inf), right = TRUE),
+         totalveg_gram_ea_4 = cut(totalveg_gram_ea, breaks = c(-Inf, 185, 270, 380, Inf), right = TRUE), 
+         fruits_gram_ea_4 = cut(fruits_gram_ea, breaks = c(-Inf, 170, 280, 420, Inf), right = TRUE), 
+         nutsseeds_gram_ea_4 = cut(nutsseeds_gram_ea, breaks = c(-Inf, 9, 19, 33, Inf), right = TRUE),
+         legumes_gram_ea_4 = cut(legumes_gram_ea, breaks = c(-Inf, 33, 60, 100, Inf), right = TRUE),
+         refgrains_gram_ea_4 = cut(refgrains_gram_ea, breaks = c(-Inf, 40, 83, 150, Inf), right = TRUE),
+         whole_mixed_grains_gram_ea_4 = cut(whole_mixed_grains_gram_ea, breaks = c(-Inf, 120, 210, 350, Inf), right = TRUE)) 
 
-levels(ahs_medic_inc2$meat_gram_ea_4)  <- c("None", "<11 g/d", "11-<32 g/d", "32+ g/d")
-levels(ahs_medic_inc2$fish_gram_ea_4)  <- c("None", "<8.6 g/d", "8.6-<17.2 g/d", "17.2+ g/d")
-levels(ahs_medic_inc2$dairy_gram_ea_4) <- c("<2150 g/d", "2150-2990 g/d", "2990-<3450 g/d", "3450+ g/d")
-levels(ahs_medic_inc2$totalveg_gram_ea_4)  <- c("<184 g/d", "184-<269 g/d", "269-<378 g/d", "378+ g/d")
-levels(ahs_medic_inc2$fruits_gram_ea_4)    <- c("<168 g/d", "168-<280 g/d", "280-<419 g/d", "419+ g/d")
-levels(ahs_medic_inc2$nutsseeds_gram_ea_4) <- c("<8.9 g/d", "8.9-<18.4 g/d", "18.4-<32.1 g/d", "32.1+ g/d")
-levels(ahs_medic_inc2$legumes_gram_ea_4)   <- c("<33.4 g/d", "33.4-<61.1 g/d", "61.1-<99.2 g/d", "99.2+ g/d")
-levels(ahs_medic_inc2$refgrains_gram_ea_4)          <- c("<38.4 g/d", "38.4-<80.5 g/d", "80.5-<146 g/d", "146+ g/d")
-levels(ahs_medic_inc2$whole_mixed_grains_gram_ea_4) <- c("<117 g/d", "117-<209 g/d", "209-<352 g/d", "352+ g/d")
+levels(ahs_medic_inc2$meat_gram_ea_4)               <- c("None",     "<11 g/d",      "11-<32 g/d",   "32+ g/d")
+levels(ahs_medic_inc2$fish_gram_ea_4)               <- c("None",     "<9 g/d",       "9-<18 g/d",    "18+ g/d")
+levels(ahs_medic_inc2$alldairy2_gram_ea_4)          <- c("None", "<50 g/d", "50-<180 g/d", "180+ g/d")
+levels(ahs_medic_inc2$totalveg_gram_ea_4)           <- c("<185 g/d", "185-<270 g/d", "270-<380 g/d", "380+ g/d")
+levels(ahs_medic_inc2$fruits_gram_ea_4)             <- c("<170 g/d", "170-<280 g/d", "280-<420 g/d", "420+ g/d")
+levels(ahs_medic_inc2$nutsseeds_gram_ea_4)          <- c("<9 g/d",   "9-<19 g/d",    "19-<33 g/d",   "33+ g/d")
+levels(ahs_medic_inc2$refgrains_gram_ea_4)          <- c("<40 g/d",  "40-<83 g/d",   "83-<150 g/d",  "150+ g/d")
+levels(ahs_medic_inc2$whole_mixed_grains_gram_ea_4) <- c("<120 g/d", "120-<210 g/d", "210-<350 g/d", "350+ g/d")
 
 # Age at medicare enrollment
 age_medicare_labels <- c("<50", "50-54", "55-59", "60-63", "64", "65", "66-69", "70+")
@@ -449,13 +480,13 @@ ahs_medic_inc2 %>%
   knitr::kable(digits = 2)
 
 ahs_medic_inc2 %>% 
-  group_by(dairy_gram_ea_4) %>% 
+  group_by(alldairy2_gram_ea_4) %>% 
   summarize(n    = n(),
             pct  = n() / nrow(ahs_medic_inc2) * 100,
-            mean = mean(dairy_gram_ea),
-            p1   = quantile(dairy_gram_ea, probs= 0.25),
-            p2   = quantile(dairy_gram_ea, probs= 0.5),
-            p3   = quantile(dairy_gram_ea, probs= 0.75)) %>% 
+            mean = mean(alldairy2_gram_ea),
+            p1   = quantile(alldairy2_gram_ea, probs= 0.25),
+            p2   = quantile(alldairy2_gram_ea, probs= 0.5),
+            p3   = quantile(alldairy2_gram_ea, probs= 0.75)) %>% 
   knitr::kable(digits = 2)
 
 ahs_medic_inc2 %>% 
@@ -597,7 +628,7 @@ tablevars <- c("agecat",
                "egg_freq",
                "meat_gram_ea_4",
                "fish_gram_ea_4",
-               "dairy_gram_ea_4",
+               "alldairy2_gram_ea_4",
                "totalveg_gram_ea_4",
                "fruits_gram_ea_4",
                "refgrains_gram_ea_4",
@@ -645,7 +676,7 @@ tablevars <- c("ALZH_DEMEN_YN2",
                "como_cancers",
                "meat_gram_ea_4",
                "fish_gram_ea_4",
-               "dairy_gram_ea_4",
+               "alldairy2_gram_ea_4",
                "totalveg_gram_ea_4",
                "fruits_gram_ea_4",
                "refgrains_gram_ea_4",
@@ -725,7 +756,7 @@ ahs_medic_inc2 <- ahs_medic_inc2 %>%
 ahs_medic_inc3 <- ahs_medic_inc2 %>% 
         mutate(meat_gram_ea = meat_gram_ea / 100) %>% 
         mutate(fish_gram_ea = fish_gram_ea / 100) %>% 
-        mutate(dairy_gram_ea = dairy_gram_ea / 100) %>% 
+        mutate(alldairy2_gram_ea = alldairy2_gram_ea / 100) %>% 
         mutate(fruits_gram_ea = fruits_gram_ea / 100) %>% 
         mutate(refgrains_gram_ea = refgrains_gram_ea / 100) %>% 
         mutate(whole_mixed_grains_gram_ea = whole_mixed_grains_gram_ea / 100) %>% 
@@ -745,7 +776,7 @@ mv3b <- cph(Surv(agein, ageout, inc_demen) ~ bene_sex_F + rti_race3 + marital + 
               rcs(totalveg_gram_ea, parms = 5) + 
               meat_gram_ea +
               fish_gram_ea +
-              dairy_gram_ea +
+              alldairy2_gram_ea +
               fruits_gram_ea +
               refgrains_gram_ea +
               whole_mixed_grains_gram_ea +
