@@ -327,6 +327,19 @@ ahsdata3 <- ahsdata2 %>%
 
 nrow(ahsdata3)
 
+# Add dairy data ----------------------------------------------------------
+
+# Dairy data from GF
+# n = 41,009
+dairy <- read_csv("./Data/Jisoo_dairy.csv") %>% select(-1)
+nrow(dairy)
+
+summary(dairy)
+
+# Merge with AHS data
+ahsdata4 <- ahsdata3 %>% 
+  inner_join(dairy, by = "analysisid")
+
 # Merge AHS data with Medicare --------------------------------------------
 
 # Extract data of the last seen: MSBF and CC files  
@@ -345,7 +358,8 @@ ahs_medic <- msbf_last_seen %>%
   inner_join(ahs_dup_removed %>% 
                rename(BENE_ID = Bene_ID) %>% 
                mutate(analysisid = parse_number(AnalysisID)), by = "BENE_ID") %>% 
-  inner_join(ahsdata3, by = "analysisid") %>% 
+  # inner_join(ahsdata3, by = "analysisid") %>% 
+  inner_join(ahsdata4, by = "analysisid") %>% 
   ungroup()
 
 nrow(ahs_medic)
@@ -567,7 +581,7 @@ kcal_adjust <- function(data, var, energy, log=TRUE){
 ahs_medic_inc2$meat_gram_ea      <- kcal_adjust(meat_gramdiet,  kcal, data = ahs_medic_inc2, log = TRUE)
 ahs_medic_inc2$fish_gram_ea      <- kcal_adjust(fish_gramdiet,  kcal, data = ahs_medic_inc2, log = TRUE)
 ahs_medic_inc2$eggs_gram_ea      <- kcal_adjust(eggs_gramdiet,  kcal, data = ahs_medic_inc2, log = TRUE)
-ahs_medic_inc2$dairy_gram_ea     <- kcal_adjust(dairy_gramdiet, kcal, data = ahs_medic_inc2, log = TRUE)
+ahs_medic_inc2$alldairy2_gram_ea <- kcal_adjust(alldairy2_gramdiet, kcal, data = ahs_medic_inc2, log = TRUE)
 
 ahs_medic_inc2$nutsseeds_gram_ea <- kcal_adjust(nutsseeds_gramdiet, kcal, data = ahs_medic_inc2, log = TRUE)
 ahs_medic_inc2$totalveg_gram_ea  <- kcal_adjust(totalveg_gramdiet, kcal, data = ahs_medic_inc2, log = TRUE)
@@ -630,6 +644,7 @@ ahs_medic_inc2$whole_mixed_grains_gram_ea    <- kcal_adjust(whole_mixed_grains_g
 ahs_medic_inc2 <- ahs_medic_inc2 %>% 
   mutate(meat_gram_ea_4 = cut(meat_gram_ea, breaks = c(-Inf, 0, 11, 32, Inf), right = TRUE), 
          fish_gram_ea_4 = cut(fish_gram_ea, breaks = c(-Inf, 0,  9, 18, Inf), right = TRUE),
+         alldairy2_gram_ea_4 = cut(alldairy2_gram_ea, breaks = c(-Inf, 0,  50, 180, Inf), right = TRUE),
          totalveg_gram_ea_4 = cut(totalveg_gram_ea, breaks = c(-Inf, 185, 270, 380, Inf), right = TRUE), 
          fruits_gram_ea_4 = cut(fruits_gram_ea, breaks = c(-Inf, 170, 280, 420, Inf), right = TRUE), 
          nutsseeds_gram_ea_4 = cut(nutsseeds_gram_ea, breaks = c(-Inf, 9, 19, 33, Inf), right = TRUE),
@@ -640,6 +655,7 @@ ahs_medic_inc2 <- ahs_medic_inc2 %>%
 levels(ahs_medic_inc2$meat_gram_ea_4)               <- c("None",     "<11 g/d",      "11-<32 g/d",   "32+ g/d")
 levels(ahs_medic_inc2$fish_gram_ea_4)               <- c("None",     "<9 g/d",       "9-<18 g/d",    "18+ g/d")
 # levels(ahs_medic_inc2$dairy_gram_ea_4)              <- c("<2150 g/d", "2150-2990 g/d", "2990-<3450 g/d", "3450+ g/d")
+levels(ahs_medic_inc2$alldairy2_gram_ea_4)            <- c("None", "<50 g/d", "50-<180 g/d", "180+ g/d")
 levels(ahs_medic_inc2$totalveg_gram_ea_4)           <- c("<185 g/d", "185-<270 g/d", "270-<380 g/d", "378+ g/d")
 levels(ahs_medic_inc2$fruits_gram_ea_4)             <- c("<170 g/d", "170-<280 g/d", "280-<420 g/d", "419+ g/d")
 levels(ahs_medic_inc2$nutsseeds_gram_ea_4)          <- c("<9 g/d",   "9-<19 g/d",    "19-<33 g/d",   "33+ g/d")
@@ -671,14 +687,14 @@ ahs_medic_inc2 %>%
             p2   = quantile(fish_gram_ea, probs= 0.5),
             p3   = quantile(fish_gram_ea, probs= 0.75))
 
-# ahs_medic_inc2 %>% 
-#   group_by(dairy_gram_ea_4) %>% 
-#   summarize(n    = n(),
-#             pct  = n() / nrow(ahs_medic_inc2) * 100,
-#             mean = mean(dairy_gram_ea),
-#             p1   = quantile(dairy_gram_ea, probs= 0.25),
-#             p2   = quantile(dairy_gram_ea, probs= 0.5),
-#             p3   = quantile(dairy_gram_ea, probs= 0.75))
+ahs_medic_inc2 %>%
+  group_by(alldairy2_gram_ea_4) %>%
+  summarize(n    = n(),
+            pct  = n() / nrow(ahs_medic_inc2) * 100,
+            mean = mean(alldairy2_gram_ea),
+            p1   = quantile(alldairy2_gram_ea, probs= 0.25),
+            p2   = quantile(alldairy2_gram_ea, probs= 0.5),
+            p3   = quantile(alldairy2_gram_ea, probs= 0.75))
 
 # egg and meat intake, 4x4 table
 ahs_medic_inc2 %>% 
@@ -745,7 +761,7 @@ tablevars <- c("agecat",
                "meat_gram_ea_4",
                "fish_gram_ea_4",
                # "eggs_gram_ea_4",
-               # "dairy_gram_ea_4",
+               "alldairy2_gram_ea_4",
                "totalveg_gram_ea_4",
                "fruits_gram_ea_4",
                # "grains_gram_ea_4",
@@ -796,7 +812,7 @@ tablevars <- c("ALZH_YN2",
                "meat_gram_ea_4",
                "fish_gram_ea_4",
                # "eggs_gram_ea_4",
-               # "dairy_gram_ea_4",
+               "alldairy2_gram_ea_4",
                "totalveg_gram_ea_4",
                "fruits_gram_ea_4",
                # "grains_gram_ea_4",
@@ -827,7 +843,7 @@ vars <- c("bene_sex_F", "rti_race3", "marital", "educyou2", "bmicat", "exercise"
           "como_depress", "como_disab", "como_diabetes", "como_cvd", "como_hypert", "como_hyperl", "como_resp", 
           "como_anemia", "como_kidney", "como_hypoth", "como_cancers", 
           # "kcal100", "egg_freq", "meat_gram_ea_4", "fish_gram_ea_4", "dairy_gram_ea_4",
-          "kcal100", "egg_freq", "meat_gram_ea_4", "fish_gram_ea_4", 
+          "kcal100", "egg_freq", "meat_gram_ea_4", "fish_gram_ea_4",  "alldairy2_gram_ea_4",
           "totalveg_gram_ea_4", "fruits_gram_ea_4", "refgrains_gram_ea_4", "whole_mixed_grains_gram_ea_4",
           "nutsseeds_gram_ea_4", "legumes_gram_ea_4"
 )
@@ -920,7 +936,7 @@ mv2a_mod <- coxph(Surv(agein, ageout, inc_demen) ~ bene_sex_F + rti_race3 + mari
                     # bmicat + exercise + sleephrs2 + smokecat + alccat + kcal100 + eggs_gram_ea_4 + 
                     bmicat + exercise + sleephrs2 + smokecat + alccat + kcal100 + egg_freq + 
                     # meat_gram_ea_4 + fish_gram_ea_4 + dairy_gram_ea_4 +
-                    meat_gram_ea_4 + fish_gram_ea_4 + 
+                    meat_gram_ea_4 + fish_gram_ea_4 + alldairy2_gram_ea_4 +
                     totalveg_gram_ea_4 + fruits_gram_ea_4 + refgrains_gram_ea_4 + whole_mixed_grains_gram_ea_4 +
                     nutsseeds_gram_ea_4 + legumes_gram_ea_4, data = ahs_medic_inc2, method = "efron")
 
@@ -966,7 +982,7 @@ mv2b_mod <- coxph(Surv(agein, ageout, inc_demen) ~ bene_sex_F + rti_race3 + mari
                     kcal100 + egg_freq +
                     # meat_gram_ea_4 + fish_gram_ea_4 + dairy_gram_ea_4, data = ahs_medic_inc2, method = "efron")
                     # meat_gram_ea_4 + fish_gram_ea_4 + dairy_gram_ea_4 +
-                    meat_gram_ea_4 + fish_gram_ea_4 + 
+                    meat_gram_ea_4 + fish_gram_ea_4 + alldairy2_gram_ea_4 +
                     totalveg_gram_ea_4 + fruits_gram_ea_4 + refgrains_gram_ea_4 + whole_mixed_grains_gram_ea_4 +
                     nutsseeds_gram_ea_4 + legumes_gram_ea_4, data = ahs_medic_inc2, method = "efron")
 
@@ -1014,7 +1030,7 @@ mv2c_mod <- coxph(Surv(agein, ageout, inc_demen) ~ bene_sex_F + rti_race3 + mari
                     kcal100 + egg_freq +
                     # meat_gram_ea_4 + fish_gram_ea_4 + dairy_gram_ea_4, data = ahs_medic_inc2, method = "efron")
                     # meat_gram_ea_4 + fish_gram_ea_4 + dairy_gram_ea_4 +
-                    meat_gram_ea_4 + fish_gram_ea_4 + 
+                    meat_gram_ea_4 + fish_gram_ea_4 + alldairy2_gram_ea_4 +
                     totalveg_gram_ea_4 + fruits_gram_ea_4 + refgrains_gram_ea_4 + whole_mixed_grains_gram_ea_4 +
                     nutsseeds_gram_ea_4 + legumes_gram_ea_4, data = ahs_medic_inc2, method = "efron")
 
