@@ -121,11 +121,13 @@ ahs_dup_removed <- ahs %>% anti_join(exclude_analysisIDs)
 ahsdata <- read.csv("./Data/BaselineDataForMedicare20190531.csv", header=TRUE)
 names(ahsdata) <- tolower(names(ahsdata))
 
-# Imputed data # 1
-# n = 88,051
-temp <- read_csv("./Data/File_1_2024-10-16.csv")
-nrow(temp)
+# Imputed data ------------------------------------------------------------
 
+# Imputed data # 1
+# n = 41,041
+temp <- read_csv("./Data/File_1_2025-03-26.csv")
+
+# Changed: Meat now exclude pork
 ahsdata2 <- temp %>%
   rename(agein = calc_baseline_age) %>% 
   
@@ -138,9 +140,11 @@ ahsdata2 <- temp %>%
          bmicat    = factor(bmicat, labels = c("Normal", "Overweight", "Obese")),
          marital   = recode(marital, "Never", "Married", "Married", "Married", "Div/Wid", "Div/Wid", "Div/Wid"),
          marital   = factor(marital, levels = c("Married", "Never", "Div/Wid")),
-         educyou   = factor(educat3, levels = c("HSch & below", "Some College", "Bachelors +")),
+         # educyou   = factor(educat3, levels = c("HSch & below", "Some College", "Bachelors +")),
+         educyou   = factor(educat3, labels = c("Bachelors +","HSch & below", "Some College")),
+         educyou   = fct_relevel(educyou, "HSch & below", "Some College", "Bachelors +"),
          educyou2  = relevel(educyou, ref = "Bachelors +"),
-         sleephrs  = recode(sleephrs, "<= 5 hrs", "<= 5 hrs", "<= 5 hrs", "6 hrs", "7 hrs",  
+         sleephrs  = recode(sleephrs - 2, "<= 5 hrs", "<= 5 hrs", "<= 5 hrs", "6 hrs", "7 hrs",  
                                       "8 hrs", ">= 9 hrs", ">= 9 hrs", ">= 9 hrs"),
          sleephrs  = factor(sleephrs, levels = c("<= 5 hrs", "6 hrs", "7 hrs", "8 hrs", ">= 9 hrs")),
          sleephrs2 = relevel(sleephrs, ref = "7 hrs"),
@@ -149,40 +153,26 @@ ahsdata2 <- temp %>%
          vegstat2  = relevel(vegstat, ref = "Non-veg"),
          exercise  = cut(exermin_week, breaks = c(-Inf, 0, 30, 120, Inf), right = TRUE),
          exercise  = factor(exercise, labels = c("None", "≤0.5 hrs/wk", "0.5<-2 hrs/wk", ">2 hrs/wk")),
-         smokecat  = factor(smokecat6, labels = c("Never", rep("Ever", 5))),
-         alccat    = ifelse(wine2cat == "1no" & beerliq2 == "1no", "Never", "Ever"),
-         alccat    = factor(alccat, levels = c("Never", "Ever")), 
+         # smokecat  = factor(smokecat6, labels = c("Never", rep("Ever", 5))),
+         smokecat6 = factor(smokecat6),
+         # alccat    = ifelse(wine2cat == "1no" & beerliq2 == "1no", "Never", "Ever"),
+         alccat    = ifelse(winegd == 0 & beergd == 0 & liquorgd == 0, "None", "Current"),
+         alccat    = factor(alccat, levels = c("None", "Current")),
   
   # Dietary variables
          egg_freq  = recode(eggbetrf, 1, 2, 3, 4, 5, 5, 5, 5, 5),
          egg_freq  = factor(egg_freq, labels = c("Never", "1-3/mo", "1/wk", "2-4/wk", "5+/wk")),
          kcal      = kcaldiet + kcalsupp,
-         meat_gramdiet = procredmeat_gramdiet + unprocredmeat_gramdiet + procpoultry_gramdiet + unprocpoultry_gramdiet +  pork_gramdiet,
-         fish_gramdiet = fattyfish_gramdiet + otherfish_gramdiet,
+         meat_gramdiet = procredmeat_gramdiet + unprocredmeat_gramdiet + procpoultry_gramdiet + unprocpoultry_gramdiet,
+         # fish_gramdiet = fattyfish_gramdiet + otherfish_gramdiet,
          grains_gramdiet = wholegrains_gramdiet + mixedgrains_gramdiet + refgrains_gramdiet,
          whole_mixed_grains_gramdiet = wholegrains_gramdiet + mixedgrains_gramdiet)
 
 # Opt-outs: n = 395
 optout <- read_csv("./Data/OptOutAnalysisIDs.csv") %>% setNames("analysisid")
 
-# n = 383 to be excluded
+# ...are already excluded
 ahsdata2 %>% semi_join(optout) %>% nrow()
-
-# Remove opt-outs, yielding n = 87,668
-ahsdata3 <- ahsdata2 %>% 
-  anti_join(optout, by = "analysisid")
-
-
-# Add dairy data ----------------------------------------------------------
-
-# Dairy data from GF
-# n = 41,009
-dairy <- read_csv("./Data/Jisoo_dairy.csv") %>% select(-1)
-nrow(dairy)
-
-# Merge with AHS data
-ahsdata4 <- ahsdata3 %>% 
-  inner_join(dairy, by = "analysisid")
 
 # Merge AHS data with Medicare --------------------------------------------
 
@@ -196,25 +186,25 @@ cc_last_seen <- all_cc_long %>%
   slice(n())
 
 # Merge AHS data with Medicare
-# Results in n = 41,099 subjects
+# Results in n = 41,041 subjects
 ahs_medic <- msbf_last_seen %>% 
   inner_join(cc_last_seen %>% select(-BENE_ENROLLMT_REF_YR), by = "BENE_ID") %>%
   inner_join(ahs_dup_removed %>% 
                rename(BENE_ID = Bene_ID) %>% 
                mutate(analysisid = parse_number(AnalysisID)), by = "BENE_ID") %>% 
   # inner_join(ahsdata3, by = "analysisid") %>% 
-  inner_join(ahsdata4, by = "analysisid") %>% 
+  inner_join(ahsdata2, by = "analysisid") %>% 
   ungroup()
 
 # Apply inclusion/exclusion criteria --------------------------------------
 
-# Remove if AGE_AT_END_REF_YR < 65 (n = 1336)
-# Results in n = 39,763
+# Remove if AGE_AT_END_REF_YR < 65
+# Results in n = 39,709
 ahs_medic <- ahs_medic %>% 
   filter(AGE_AT_END_REF_YR >= 65)
 
-# Remove if BMI is extreme (n = 82)
-# Resuts in n = 39,681
+# Remove if BMI is extreme
+# Resuts in n = 39,626
 ahs_medic <- ahs_medic %>% 
   filter(bmi >= 16, bmi <= 60)
 
@@ -238,7 +228,7 @@ prev_cases <- alz_diag_date %>%
   select(BENE_ID, analysisid, ALZH_YN, qreturndate, ALZH_EVER, DateDiff_days, DateDiff_months, DateDiff_years)
 
 # Exclude prevalent cases
-# Yields n = 39,572 subjects
+# Yields n = 39,517 subjects
 ahs_medic_inc <- ahs_medic %>% 
   anti_join(prev_cases, by = "analysisid") %>% 
   mutate(BENE_BIRTH_DT = ymd(BENE_BIRTH_DT),
@@ -246,7 +236,7 @@ ahs_medic_inc <- ahs_medic %>%
          ALZH_EVER = ymd(ALZH_EVER))
 
 # Exclude unverified deaths
-# Yields n = 39,285
+# Yields n = 39,498
 unverified_deaths <- ahs_medic_inc %>% 
   filter(!is.na(BENE_DEATH_DT)) %>%
   filter(is.na(VALID_DEATH_DT_SW)) %>% 
@@ -359,8 +349,7 @@ ahs_medic_inc2 <- ahs_medic_inc2 %>%
 
 levels(ahs_medic_inc2$meat_gram_ea_4)               <- c("None",     "<11 g/d",      "11-<32 g/d",   "32+ g/d")
 levels(ahs_medic_inc2$fish_gram_ea_4)               <- c("None",     "<9 g/d",       "9-<18 g/d",    "18+ g/d")
-# levels(ahs_medic_inc2$dairy_gram_ea_4)              <- c("<2150 g/d", "2150-2990 g/d", "2990-<3450 g/d", "3450+ g/d")
-levels(ahs_medic_inc2$alldairy2_gram_ea_4)          <- c("None", "<50 g/d", "50-<180 g/d", "180+ g/d")
+levels(ahs_medic_inc2$alldairy2_gram_ea_4)          <- c("None",     "<50 g/d",      "50-<180 g/d", "180+ g/d")
 levels(ahs_medic_inc2$totalveg_gram_ea_4)           <- c("<185 g/d", "185-<270 g/d", "270-<380 g/d", "380+ g/d")
 levels(ahs_medic_inc2$fruits_gram_ea_4)             <- c("<170 g/d", "170-<280 g/d", "280-<420 g/d", "420+ g/d")
 levels(ahs_medic_inc2$nutsseeds_gram_ea_4)          <- c("<9 g/d",   "9-<19 g/d",    "19-<33 g/d",   "33+ g/d")
@@ -404,25 +393,30 @@ ahs_medic_inc2 <- ahs_medic_inc2 %>%
     * Gender/DOB mismatch with AHS-2 data
     * Dupulicate beneficiary IDs and SSNs
 
-* AHS-2 baseline data with imputations: n = 88,051
-  * Among this, n = 383 subjects were excluded because they opted out of the study
-  * After removing opt-outs, there were n = 87,668 subjects
+* For AHS-2 baseline data, including food-frequency questionnaire (FFQ), a guided multiple imputation was used to fill missing data ([Fraser & Yan, 2007](https://pubmed.ncbi.nlm.nih.gov/17259903/))
+  * Five imputed data sets were generated for subsequent analyses (See the analysis section for more details)
+  * For descriptive analysis, we present results from the first imputed data
+
+* AHS-2 baseline imputed data #1: n = 41,041
+  * ~~Among this, n = 383 subjects were excluded because they opted out of the study~~
+  * ~~After removing opt-outs, there were n = 87,668 subjects~~
+  * Opt-outs were already excluded
   
 * After merging Medicare and AHS-2 data, there were n = 41,099 subjects.
 
 ## Inclusion/exclusion criteria
 
-* Medicare beneficiaries who did not reach the age of 65 between 2008 and 2020 (e.g., younger beneficiaries with disabilities or end-stage renal disease) were excluded (n = 1336), resulting n = 39,763.
+* Medicare beneficiaries who did not reach the age of 65 between 2008 and 2020 (e.g., younger beneficiaries with disabilities or end-stage renal disease) were excluded, resulting n = 39,709.
 
-* n = 82 subjects with extreme BMI (<16 or >60), according to AHS questionnaire, were excluded, resulting n = 39,681.
+* Subjects with extreme BMI (<16 or >60), according to AHS questionnaire, were excluded, resulting n = 39,626.
 
 * Prevalent cases of Alzheimer's disease
   * If the first diagnosis was made before AHS-2 enrollment or within 6 months after the enrollment, consider it as a prevalent case
-  * n = 109 such prevalent cases were excluded, resulting n = 39,572 subjects
+  * n = 109 such prevalent cases were excluded, resulting n = 39,517 subjects
   
 * Unverified dates of deaths
   * Medicare data include a variable (`VALID_DEATH_DT_SW`) indicating whether a beneficiary's day of death has been verified by the Social Security Administration or the Railroad Retirement Board.
-  * There were 19 unverified death dates. Excluding these resulted n = 39,553.
+  * There were 19 unverified death dates. Excluding these resulted n = 39,498.
 
 ## Dietary variables 
 
@@ -431,8 +425,9 @@ ahs_medic_inc2 <- ahs_medic_inc2 %>%
 * For each food group, its dietary intake was energy-adjusted by the residual method, while partitioning zero intake ([Jaceldo-Siegl et al., 2011](https://www.ncbi.nlm.nih.gov/pmc/articles/PMC3433053/)). Due to its highly right-skewed distribution, non-zero intake was log-transformed before being regressed on the total energy intake. Residuals were added by the mean of log and then back-transformed to obtain energy-adjusted dietary intake. Energy-adjusted dietary intake was added with (unadjusted) supplement intake to form energy-adjuste total intake.
 
 * Subjects were then divided into 4 intake levels. 
-  * For meat and fish, about 51% of subjects indicated zero intake and they were classified to a non-consumption group. The rest of the subjects were approximately equally allocated to 3 consumption groups according to their intake. 
-  * For other food group variables, subjects were divided into 4 quartile groups (approximately).
+  * For meat and fish, about 50% of subjects indicated zero intake and they were classified to a non-consumption group. The rest of the subjects were approximately equally allocated to 3 consumption groups according to their intake. 
+   * Similarly for dairy, about 11% of subjects reported zero consumption. 
+  * For other food group variables, subjects were divided into approximately 4 quartile groups.
   * For cut-off values of the four food groups, please see the descriptive table below.
 
 * Mean and 25th, 50th, 75th percentiles of gram intake by intake group are shown below:
@@ -557,9 +552,9 @@ ahs_medic_inc2 %>%
     * Education level (high school or less, some college, college graduate)
     * Dietary pattern (5 levels: vegan, lacto-ovo, semi, pesco and non-vegetarians)
     * BMI group
-    * Exercise (none, low, moderate, vigorous)
-    * Smoking (never/ever)
-    * Alcohol use (never/ever)
+    * Exercise (none, ≤0.5 hrs/wk, 0.5<-2 hrs/wk, >2 hrs/wk)
+    * Smoking (6 categories)
+    * Current alcohol use (none/current)
     * Sleep hours
   * Comorbidity variables (yes/no) were derived from Medicare chronic condition data. Those who were diagnosed with the following conditions prior to study enrollment were flagged.
     * Cancer: breast, colorectal, lung, prostate, endometrial
@@ -592,7 +587,7 @@ tablevars <- c("agecat",
                "bmi", 
                "exercise", 
                "sleephrs", 
-               "smokecat", 
+               "smokecat6", 
                "alccat", 
                "como_depress",
                "como_disab", 
@@ -641,7 +636,7 @@ tablevars <- c("ALZH_YN2",
                "bmi", 
                "exercise", 
                "sleephrs", 
-               "smokecat", 
+               "smokecat6", 
                "alccat", 
                "como_depress",
                "como_disab", 
@@ -692,11 +687,16 @@ ahs_medic_inc2 %>%
   * Age at entry was calculated based on the return date of AHS-2 questionnaire
   * Those who died during the follow-up were censored at the date of death verified in Medicare data
   * Those who were diagnosed with Alzheimer's disease after 6 months following study enrollment were identified as incident cases and their age at diagnosis was calculated. 
-    * The mean follow-up years was 15.2 years (median 16.7 years)
+    * The mean follow-up years was 15.3 years (median 16.7 years)
   * The main exposure variable of interest was the frequency of egg intake.
     * In the AHS-2 baseline questionnaire, the frequency of egg intake was measured in 9 categories, as shown in "Dietary variables" section above.
     * Based on its distribution, egg frequency was re-categorized into 5 groups (see the "Descriptive table" section)
   * Other food group variables were categorized into 4 intake group, as descrived in "Dietary variable." section.
+
+* (Describe multivariable Cox models here -- refer to the Excel file containing model results)
+  * The models were run for each imputed data sets, yielding 5 sets of estimated beta coefficients and their variance-covariance matrix
+  * These results were combined according to Rubin's rule, and the pooled estimates of HRs and their 95% confidence intervals were produced
+  * All analyses were performed on R version 4.4.3
   
 * Table XX:
   * Unadjusted hazard ratio (HR) is shown in the first column of Table XX for each covariate
@@ -730,11 +730,12 @@ ahs_medic_inc2 <- ahs_medic_inc2 %>%
          inc_demen  = ifelse(ALZH_YN == "Yes", 1, 0),
          kcal100    = kcal / 100)
 
-# Model 3b: Fit with linear terms if non-linearity non-sig
+# Model 2c: Fit with linear terms if non-linearity non-sig
 ahs_medic_inc3 <- ahs_medic_inc2 %>% 
         mutate(meat_gram_ea = meat_gram_ea / 100) %>% 
         mutate(fish_gram_ea = fish_gram_ea / 100) %>% 
-        mutate(alldairy2_gram_ea = alldairy2_gram_ea / 100) %>%
+        mutate(alldairy2_gram_ea = alldairy2_gram_ea / 100) %>% 
+        mutate(totalveg_gram_ea = totalveg_gram_ea / 100) %>% 
         mutate(fruits_gram_ea = fruits_gram_ea / 100) %>% 
         mutate(refgrains_gram_ea = refgrains_gram_ea / 100) %>% 
         mutate(whole_mixed_grains_gram_ea = whole_mixed_grains_gram_ea / 100) %>% 
@@ -745,15 +746,16 @@ ahs_medic_inc3 <- ahs_medic_inc2 %>%
 dd <- datadist(ahs_medic_inc3)
 options(datadist='dd')
 
-mv3b <- cph(Surv(agein, ageout, inc_demen) ~ bene_sex_F + rti_race3 + marital + educyou2 + 
-              bmicat + exercise + sleephrs2 + smokecat + alccat +
-              como_depress + como_disab + como_diabetes + como_cvd + como_hypert + como_hyperl + como_resp + 
+mv2c <- cph(Surv(agein, ageout, inc_demen) ~ bene_sex_F + rti_race3 + marital + educyou2 + 
+              bmicat + exercise + sleephrs2 + smokecat6 + alccat +
+              como_cvd + como_hypert + como_hyperl + como_resp + 
               como_anemia + como_kidney + como_hypoth + como_cancers +
               kcal100 + 
               rcs(eggs_gram_ea, parms = 4) +
               meat_gram_ea +
               fish_gram_ea +
               alldairy2_gram_ea +
+              totalveg_gram_ea +
               fruits_gram_ea +
               refgrains_gram_ea +
               whole_mixed_grains_gram_ea +
@@ -763,11 +765,10 @@ mv3b <- cph(Surv(agein, ageout, inc_demen) ~ bene_sex_F + rti_race3 + marital + 
 
 # Change the reference to 10 g/d
 dd$limits$eggs_gram_ea[2] <- 10
-dd$limits$totalveg_gram_ea[2] <- 300
-mv3b <- update(mv3b)
+mv2c <- update(mv2c)
 
 # pdf("RCS_egg_MV3.pdf", width = 6.5, height = 5)
-Predict(mv3b, eggs_gram_ea = seq(0, 50, by = 1), fun = exp, ref.zero = TRUE) %>% 
+Predict(mv2c, eggs_gram_ea = seq(0, 50, by = 1), fun = exp, ref.zero = TRUE) %>% 
   ggplot() +
   geom_line(linewidth = 1.3) +
   # scale_x_continuous(limits = c(0, 100), transform = "pseudo_log")+
@@ -778,7 +779,7 @@ Predict(mv3b, eggs_gram_ea = seq(0, 50, by = 1), fun = exp, ref.zero = TRUE) %>%
   labs(x = "Egg intake (energy-adjusted, gram/day)",
        y = "Adjusted hazard ratio (95% CI)",
        caption = "",
-       title = "Model 3: Cubic spline for egg intake") +
+       title = "Model 2c: Cubic spline for egg intake") +
   theme(text=element_text(size = 14))
 # dev.off()
 
@@ -788,8 +789,9 @@ Predict(mv3b, eggs_gram_ea = seq(0, 50, by = 1), fun = exp, ref.zero = TRUE) %>%
 
 ```{r cubic_spline_HR_egg, echo = FALSE, , warning = FALSE, message = FALSE}
 
-Predict(mv3b, eggs_gram_ea = c(0, 20, 30, 40, 50), fun = exp, ref.zero = TRUE) %>% 
+Predict(mv2c, eggs_gram_ea = c(0, 20, 30, 40, 50), fun = exp, ref.zero = TRUE) %>% 
   rename(HR = yhat) %>% 
+  as.data.frame() %>% 
   select(eggs_gram_ea, HR, lower, upper) %>% 
   knitr::kable(digits = 2)
 ```

@@ -1082,7 +1082,8 @@ options(datadist='dd')
 # egg_gram_ea: Cubic spline with 5 knots
 mv1 <- cph(Surv(agein, ageout, inc_demen) ~ bene_sex_F + rti_race3 + marital + educyou2 + 
            bmicat + exercise + sleephrs2 + smokecat + alccat + kcal100 + 
-           rcs(eggs_gram_ea, parms = 4), data = ahs_medic_inc2)
+           rcs(eggs_gram_ea, parms = 4), data = ahs_medic_inc2, x = TRUE, y = TRUE)
+           # rcs(eggs_gram_ea), data = ahs_medic_inc2)
 
 # Model info
 specs(mv1)
@@ -1091,6 +1092,10 @@ specs(mv1)
 mv1
 cbind(coef(mv1), confint(mv1)) %>% exp()
 anova(mv1)
+anova(mv1, test = "Chisq")
+anova(mv1, test = "LR")
+
+?anova
 
 # Egg intake: basic statistics
 summary(ahs_medic_inc2$eggs_gram_ea)
