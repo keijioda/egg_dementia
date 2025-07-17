@@ -602,14 +602,23 @@ tablevars <- c("agecat",
                "como_cancers",
                "egg_freq",
                "meat_gram_ea_4",
+               "meat_gram_ea",
                "fish_gram_ea_4",
+               "fish_gram_ea",
                "alldairy2_gram_ea_4",
+               "alldairy2_gram_ea",
                "totalveg_gram_ea_4",
+               "totalveg_gram_ea",
                "fruits_gram_ea_4",
+               "fruits_gram_ea",
                "refgrains_gram_ea_4",
+               "refgrains_gram_ea",
                "whole_mixed_grains_gram_ea_4",
+               "whole_mixed_grains_gram_ea",
                "nutsseeds_gram_ea_4",
-               "legumes_gram_ea_4"
+               "nutsseeds_gram_ea",
+               "legumes_gram_ea_4",
+               "legumes_gram_ea"
                )
 
 ahs_medic_inc2 %>% 
@@ -650,14 +659,23 @@ tablevars <- c("ALZH_YN2",
                "como_hypoth", 
                "como_cancers",
                "meat_gram_ea_4",
+               "meat_gram_ea",
                "fish_gram_ea_4",
+               "fish_gram_ea",
                "alldairy2_gram_ea_4",
+               "alldairy2_gram_ea",
                "totalveg_gram_ea_4",
+               "totalveg_gram_ea",
                "fruits_gram_ea_4",
+               "fruits_gram_ea",
                "refgrains_gram_ea_4",
+               "refgrains_gram_ea",
                "whole_mixed_grains_gram_ea_4",
+               "whole_mixed_grains_gram_ea",
                "nutsseeds_gram_ea_4",
-               "legumes_gram_ea_4"
+               "nutsseeds_gram_ea",
+               "legumes_gram_ea_4",
+               "legumes_gram_ea"
                )
 
 ahs_medic_inc2 %>% 
@@ -688,6 +706,7 @@ ahs_medic_inc2 %>%
   * Those who died during the follow-up were censored at the date of death verified in Medicare data
   * Those who were diagnosed with Alzheimer's disease after 6 months following study enrollment were identified as incident cases and their age at diagnosis was calculated. 
     * The mean follow-up years was 15.3 years (median 16.7 years)
+    * The total person-years of follow-up was 603,754 years
   * The main exposure variable of interest was the frequency of egg intake.
     * In the AHS-2 baseline questionnaire, the frequency of egg intake was measured in 9 categories, as shown in "Dietary variables" section above.
     * Based on its distribution, egg frequency was re-categorized into 5 groups (see the "Descriptive table" section)
