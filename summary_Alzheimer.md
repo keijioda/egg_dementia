@@ -44,7 +44,7 @@ Egg dementia study
     of the study~~
   - ~~After removing opt-outs, there were n = 87,668 subjects~~
   - Opt-outs were already excluded
-- After merging Medicare and AHS-2 data, there were n = 41,099 subjects.
+- After merging Medicare and AHS-2 data, there were n = 41,041 subjects.
 
 ## Inclusion/exclusion criteria
 
