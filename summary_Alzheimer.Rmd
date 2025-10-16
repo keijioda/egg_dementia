@@ -573,7 +573,8 @@ ahs_medic_inc2 %>%
     
 ```{r descriptive_stratified, echo = FALSE}
 # Variables to be included
-tablevars <- c("agecat", 
+tablevars <- c("agein",
+               "agecat", 
                # "bene_age_at_end_2008", 
                "bene_age_at_end_2020", 
                "age_medicare_cat", 
@@ -634,6 +635,7 @@ ahs_medic_inc2 %>%
 
 # Variables to be included
 tablevars <- c("ALZH_YN2",
+               "agein",
                "agecat", 
                "bene_age_at_end_2020", 
                "bene_sex_F", 
