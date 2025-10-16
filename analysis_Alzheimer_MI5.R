@@ -269,12 +269,19 @@ ahs_dup_removed %>% distinct(Bene_ID) %>% nrow()
 ahsdata <- read.csv("./Data/BaselineDataForMedicare20190531.csv", header=TRUE)
 names(ahsdata) <- tolower(names(ahsdata))
 
-# Imputed data # 1
-# n = 88,051
-temp <- read_csv("./Data/File_1_2024-10-16.csv")
-nrow(temp)
+# Imputed data ------------------------------------------------------------
 
-ahsdata2 <- temp %>%
+# File names of 5 imputed data
+imputed_file_names <- dir("./Data", full.names = TRUE) %>% grep("04-24.csv", ., value = TRUE)
+
+# Read into a list of data frames
+imputed_data <- imputed_file_names %>% lapply(read_csv)
+
+# Check sample sizes
+imputed_data %>% sapply(nrow)
+
+# Changed: Meat now exclude pork
+ahsdata2 <- imputed_data[[5]] %>%
   rename(agein = calc_baseline_age) %>% 
   
   # Get qreturndate from ahsdata and convert to date
@@ -286,9 +293,11 @@ ahsdata2 <- temp %>%
          bmicat    = factor(bmicat, labels = c("Normal", "Overweight", "Obese")),
          marital   = recode(marital, "Never", "Married", "Married", "Married", "Div/Wid", "Div/Wid", "Div/Wid"),
          marital   = factor(marital, levels = c("Married", "Never", "Div/Wid")),
-         educyou   = factor(educat3, levels = c("HSch & below", "Some College", "Bachelors +")),
+         # educyou   = factor(educat3, levels = c("HSch & below", "Some College", "Bachelors +")),
+         educyou   = factor(educat3, labels = c("Bachelors +","HSch & below", "Some College")),
+         educyou   = fct_relevel(educyou, "HSch & below", "Some College", "Bachelors +"),
          educyou2  = relevel(educyou, ref = "Bachelors +"),
-         sleephrs  = recode(sleephrs, "<= 5 hrs", "<= 5 hrs", "<= 5 hrs", "6 hrs", "7 hrs",  
+         sleephrs  = recode(sleephrs - 2, "<= 5 hrs", "<= 5 hrs", "<= 5 hrs", "6 hrs", "7 hrs",  
                                       "8 hrs", ">= 9 hrs", ">= 9 hrs", ">= 9 hrs"),
          sleephrs  = factor(sleephrs, levels = c("<= 5 hrs", "6 hrs", "7 hrs", "8 hrs", ">= 9 hrs")),
          sleephrs2 = relevel(sleephrs, ref = "7 hrs"),
@@ -297,16 +306,18 @@ ahsdata2 <- temp %>%
          vegstat2  = relevel(vegstat, ref = "Non-veg"),
          exercise  = cut(exermin_week, breaks = c(-Inf, 0, 30, 120, Inf), right = TRUE),
          exercise  = factor(exercise, labels = c("None", "≤0.5 hrs/wk", "0.5<-2 hrs/wk", ">2 hrs/wk")),
-         smokecat  = factor(smokecat6, labels = c("Never", rep("Ever", 5))),
-         alccat    = ifelse(wine2cat == "1no" & beerliq2 == "1no", "Never", "Ever"),
-         alccat    = factor(alccat, levels = c("Never", "Ever")), 
+         # smokecat  = factor(smokecat6, labels = c("Never", rep("Ever", 5))),
+         smokecat6 = factor(smokecat6),
+         # alccat    = ifelse(wine2cat == "1no" & beerliq2 == "1no", "Never", "Ever"),
+         alccat    = ifelse(winegd == 0 & beergd == 0 & liquorgd == 0, "None", "Current"),
+         alccat    = factor(alccat, levels = c("None", "Current")),
   
   # Dietary variables
          egg_freq  = recode(eggbetrf, 1, 2, 3, 4, 5, 5, 5, 5, 5),
          egg_freq  = factor(egg_freq, labels = c("Never", "1-3/mo", "1/wk", "2-4/wk", "5+/wk")),
          kcal      = kcaldiet + kcalsupp,
-         meat_gramdiet = procredmeat_gramdiet + unprocredmeat_gramdiet + procpoultry_gramdiet + unprocpoultry_gramdiet +  pork_gramdiet,
-         fish_gramdiet = fattyfish_gramdiet + otherfish_gramdiet,
+         meat_gramdiet = procredmeat_gramdiet + unprocredmeat_gramdiet + procpoultry_gramdiet + unprocpoultry_gramdiet,
+         # fish_gramdiet = fattyfish_gramdiet + otherfish_gramdiet,
          grains_gramdiet = wholegrains_gramdiet + mixedgrains_gramdiet + refgrains_gramdiet,
          whole_mixed_grains_gramdiet = wholegrains_gramdiet + mixedgrains_gramdiet)
 
@@ -314,6 +325,7 @@ ahsdata2 <- temp %>%
 optout <- read_csv("./Data/OptOutAnalysisIDs.csv") %>% setNames("analysisid")
 
 # n = 383 to be excluded
+# Already excluded?
 ahsdata2 %>% semi_join(optout) %>% nrow()
 
 # Those who live outside US
@@ -322,23 +334,21 @@ outside_us <- read_csv("./Data/outside_us.csv")
 ahsdata2 %>% semi_join(outside_us, by = "analysisid") %>% nrow()
 
 # Remove opt-outs, yielding n = 87,668
-ahsdata3 <- ahsdata2 %>% 
-  anti_join(optout, by = "analysisid")
+# ahsdata3 <- ahsdata2 %>% 
+#   anti_join(optout, by = "analysisid")
 
-nrow(ahsdata3)
+nrow(ahsdata2)
 
 # Add dairy data ----------------------------------------------------------
 
 # Dairy data from GF
 # n = 41,009
-dairy <- read_csv("./Data/Jisoo_dairy.csv") %>% select(-1)
-nrow(dairy)
-
-summary(dairy)
+# dairy <- read_csv("./Data/Jisoo_dairy.csv") %>% select(-1)
+# nrow(dairy)
 
 # Merge with AHS data
-ahsdata4 <- ahsdata3 %>% 
-  inner_join(dairy, by = "analysisid")
+# ahsdata4 <- ahsdata3 %>% 
+#   inner_join(dairy, by = "analysisid")
 
 # Merge AHS data with Medicare --------------------------------------------
 
@@ -359,7 +369,8 @@ ahs_medic <- msbf_last_seen %>%
                rename(BENE_ID = Bene_ID) %>% 
                mutate(analysisid = parse_number(AnalysisID)), by = "BENE_ID") %>% 
   # inner_join(ahsdata3, by = "analysisid") %>% 
-  inner_join(ahsdata4, by = "analysisid") %>% 
+  # inner_join(ahsdata4, by = "analysisid") %>% 
+  inner_join(ahsdata2, by = "analysisid") %>%
   ungroup()
 
 nrow(ahs_medic)
@@ -488,9 +499,6 @@ ahs_medic_inc2 <- ahs_medic_inc %>%
 
 # Mean/median follow-up years: Mean 15.2 years, Median 16.7 years
 summary(ahs_medic_inc2$fuyear) %>% round(2)
-
-# Person-years
-sum(ahs_medic_inc2$fuyear)
 
 # Age at diagnosis: Mean 83.8 years, Median 84.5 years
 ahs_medic_inc2 %>% 
@@ -645,7 +653,7 @@ ahs_medic_inc2$whole_mixed_grains_gram_ea    <- kcal_adjust(whole_mixed_grains_g
 # table(cut(ahs_medic_inc2$fish_gram_ea, breaks = c(-Inf, 0, 8.6, 17.2, Inf), right = TRUE)) %>% prop.table
 
 ahs_medic_inc2 <- ahs_medic_inc2 %>% 
-  mutate(meat_gram_ea_4 = cut(meat_gram_ea, breaks = c(-Inf, 0, 11, 32, Inf), right = TRUE), 
+  mutate(meat_gram_ea_4 = cut(meat_gram_ea, breaks = c(-Inf, 0, 11, 32, Inf), right = TRUE),
          fish_gram_ea_4 = cut(fish_gram_ea, breaks = c(-Inf, 0,  9, 18, Inf), right = TRUE),
          alldairy2_gram_ea_4 = cut(alldairy2_gram_ea, breaks = c(-Inf, 0,  50, 180, Inf), right = TRUE),
          totalveg_gram_ea_4 = cut(totalveg_gram_ea, breaks = c(-Inf, 185, 270, 380, Inf), right = TRUE), 
@@ -657,10 +665,9 @@ ahs_medic_inc2 <- ahs_medic_inc2 %>%
 
 levels(ahs_medic_inc2$meat_gram_ea_4)               <- c("None",     "<11 g/d",      "11-<32 g/d",   "32+ g/d")
 levels(ahs_medic_inc2$fish_gram_ea_4)               <- c("None",     "<9 g/d",       "9-<18 g/d",    "18+ g/d")
-# levels(ahs_medic_inc2$dairy_gram_ea_4)              <- c("<2150 g/d", "2150-2990 g/d", "2990-<3450 g/d", "3450+ g/d")
-levels(ahs_medic_inc2$alldairy2_gram_ea_4)            <- c("None", "<50 g/d", "50-<180 g/d", "180+ g/d")
-levels(ahs_medic_inc2$totalveg_gram_ea_4)           <- c("<185 g/d", "185-<270 g/d", "270-<380 g/d", "378+ g/d")
-levels(ahs_medic_inc2$fruits_gram_ea_4)             <- c("<170 g/d", "170-<280 g/d", "280-<420 g/d", "419+ g/d")
+levels(ahs_medic_inc2$alldairy2_gram_ea_4)          <- c("None",     "<50 g/d",      "50-<180 g/d",  "180+ g/d")
+levels(ahs_medic_inc2$totalveg_gram_ea_4)           <- c("<185 g/d", "185-<270 g/d", "270-<380 g/d", "380+ g/d")
+levels(ahs_medic_inc2$fruits_gram_ea_4)             <- c("<170 g/d", "170-<280 g/d", "280-<420 g/d", "420+ g/d")
 levels(ahs_medic_inc2$nutsseeds_gram_ea_4)          <- c("<9 g/d",   "9-<19 g/d",    "19-<33 g/d",   "33+ g/d")
 levels(ahs_medic_inc2$refgrains_gram_ea_4)          <- c("<40 g/d",  "40-<83 g/d",   "83-<150 g/d",  "150+ g/d")
 levels(ahs_medic_inc2$whole_mixed_grains_gram_ea_4) <- c("<120 g/d", "120-<210 g/d", "210-<350 g/d", "350+ g/d")
@@ -746,7 +753,7 @@ tablevars <- c("agecat",
                "bmi", 
                "exercise", 
                "sleephrs", 
-               "smokecat", 
+               "smokecat6", 
                "alccat", 
                "como_depress",
                "como_disab", 
@@ -762,25 +769,16 @@ tablevars <- c("agecat",
                "como_cancers",
                "egg_freq",
                "meat_gram_ea_4",
-               "meat_gram_ea",
                "fish_gram_ea_4",
-               "fish_gram_ea",
                # "eggs_gram_ea_4",
                "alldairy2_gram_ea_4",
-               "alldairy2_gram_ea",
                "totalveg_gram_ea_4",
-               "totalveg_gram_ea",
                "fruits_gram_ea_4",
-               "fruits_gram_ea",
                # "grains_gram_ea_4",
                "refgrains_gram_ea_4",
-               "refgrains_gram_ea",
                "whole_mixed_grains_gram_ea_4",
-               "whole_mixed_grains_gram_ea",
                "nutsseeds_gram_ea_4",
-               "nutsseeds_gram_ea",
-               "legumes_gram_ea_4",
-               "legumes_gram_ea"
+               "legumes_gram_ea_4"
                )
 
 summary(ahs_medic_inc2$ALZH_YN)
@@ -807,7 +805,7 @@ tablevars <- c("ALZH_YN2",
                "bmi", 
                "exercise", 
                "sleephrs", 
-               "smokecat", 
+               "smokecat6", 
                "alccat", 
                "como_depress",
                "como_disab", 
@@ -851,7 +849,7 @@ print(out, showAllLevels = TRUE)
 # Cox models --------------------------------------------------------------
 
 # Indep vars (will be age-adjusted)
-vars <- c("bene_sex_F", "rti_race3", "marital", "educyou2", "bmicat", "exercise", "sleephrs2", "smokecat", "alccat",
+vars <- c("bene_sex_F", "rti_race3", "marital", "educyou2", "bmicat", "exercise", "sleephrs2", "smokecat6", "alccat",
           "como_depress", "como_disab", "como_diabetes", "como_cvd", "como_hypert", "como_hyperl", "como_resp", 
           "como_anemia", "como_kidney", "como_hypoth", "como_cancers", 
           # "kcal100", "egg_freq", "meat_gram_ea_4", "fish_gram_ea_4", "dairy_gram_ea_4",
@@ -885,28 +883,33 @@ out <- do.call(rbind, lapply(cox_out, getHR))
 rownames(out) <- unlist(mapply(replace_var, cox_out, varname = names(cox_out)))
 out
 
+MI5_unadj <- cox_out
+
 # Multivariable Cox model
 
 # Model 1a: Demog + Lifestyle + Egg
 mv1a_mod <- coxph(Surv(agein, ageout, inc_demen) ~ bene_sex_F + rti_race3 + marital + educyou2 +  
                     # bmicat + exercise + sleephrs2 + smokecat + alccat + kcal100 + eggs_gram_ea_4, data = ahs_medic_inc2, method = "efron")
-                    bmicat + exercise + sleephrs2 + smokecat + alccat + kcal100 + egg_freq, data = ahs_medic_inc2, method = "efron")
+                    bmicat + exercise + sleephrs2 + smokecat6 + alccat + kcal100 + egg_freq, data = ahs_medic_inc2, method = "efron")
 
 mv1a_out  <- summary(mv1a_mod)
 mv1a_out2 <- cbind(mvHR = coef(mv1a_out)[, "exp(coef)"], exp(confint(mv1a_mod))) %>% round(2)
 
+# Keep for pooling MI results
+coef(mv1a_mod)
+vcov(mv1a_mod)
+
+MI_mv1a_mod  <- c(MI_mv1a_mod, list(mv1a_mod))
+MI_mv1a_coef <- c(MI_mv1a_coef, list(coef(mv1a_mod)))
+MI_mv1a_vcov <- c(MI_mv1a_vcov, list(vcov(mv1a_mod)))
+
 # Model 1a Trend p-value
-mv_mod_tmp <- update(mv1a_mod, .~. - educyou2 + as.numeric(educyou))
-summary(mv_mod_tmp)
-mv_mod_tmp <- update(mv1a_mod, .~. - bmicat + as.numeric(bmicat))
-summary(mv_mod_tmp)
-mv_mod_tmp <- update(mv1a_mod, .~. - exercise + as.numeric(exercise))
-summary(mv_mod_tmp)
-mv_mod_tmp <- update(mv1a_mod, .~. - sleephrs2 + as.numeric(sleephrs))
-summary(mv_mod_tmp)
-# mv_mod_tmp <- update(mv1a_mod, .~. - eggs_gram_ea_4 + as.numeric(eggs_gram_ea_4))
-mv_mod_tmp <- update(mv1a_mod, .~. - egg_freq + as.numeric(egg_freq))
-summary(mv_mod_tmp)
+MI5_mv1a_trend <- list(update(mv1a_mod, .~. - educyou2 + as.numeric(educyou)),
+                       update(mv1a_mod, .~. - bmicat + as.numeric(bmicat)),
+                       update(mv1a_mod, .~. - exercise + as.numeric(exercise)),
+                       update(mv1a_mod, .~. - sleephrs2 + as.numeric(sleephrs)),
+                       update(mv1a_mod, .~. - smokecat6 + as.numeric(smokecat6)),
+                       update(mv1a_mod, .~. - egg_freq + as.numeric(egg_freq)))
 
 # Model 1b: Demog + Lifestyle + Comorbidity + Egg
 mv1b_mod <- coxph(Surv(agein, ageout, inc_demen) ~ bene_sex_F + rti_race3 + marital + educyou2 +
@@ -946,44 +949,43 @@ mv1c_out2 <- cbind(mvHR = coef(mv1c_out)[, "exp(coef)"], exp(confint(mv1c_mod)))
 # Model 2a: Demog + Lifestyle + Egg + Meat + Fish + Dairy
 mv2a_mod <- coxph(Surv(agein, ageout, inc_demen) ~ bene_sex_F + rti_race3 + marital + educyou2 +
                     # bmicat + exercise + sleephrs2 + smokecat + alccat + kcal100 + eggs_gram_ea_4 + 
-                    bmicat + exercise + sleephrs2 + smokecat + alccat + kcal100 + egg_freq + 
+                    bmicat + exercise + sleephrs2 + smokecat6 + alccat + kcal100 + egg_freq + 
                     # meat_gram_ea_4 + fish_gram_ea_4 + dairy_gram_ea_4 +
-                    meat_gram_ea_4 + fish_gram_ea_4 + alldairy2_gram_ea_4 +
-                    totalveg_gram_ea_4 + fruits_gram_ea_4 + refgrains_gram_ea_4 + whole_mixed_grains_gram_ea_4 +
-                    nutsseeds_gram_ea_4 + legumes_gram_ea_4, data = ahs_medic_inc2, method = "efron")
+                    # meat_gram_ea_4 + fish_gram_ea_4 + alldairy2_gram_ea_4 +
+                    meat_gram_ea + fish_gram_ea + alldairy2_gram_ea +
+                    # totalveg_gram_ea_4 + fruits_gram_ea_4 + refgrains_gram_ea_4 + whole_mixed_grains_gram_ea_4 +
+                    totalveg_gram_ea + fruits_gram_ea + refgrains_gram_ea + whole_mixed_grains_gram_ea +
+                    # nutsseeds_gram_ea_4 + legumes_gram_ea_4, data = ahs_medic_inc2, method = "efron")
+                    nutsseeds_gram_ea + legumes_gram_ea, data = ahs_medic_inc2, method = "efron")
 
 mv2a_out  <- summary(mv2a_mod)
 mv2a_out2 <- cbind(mvHR = coef(mv2a_out)[, "exp(coef)"], exp(confint(mv2a_mod))) %>% round(2)
 
+# Keep for pooling MI results
+coef(mv2a_mod)
+vcov(mv2a_mod)
+
+MI_mv2a_mod  <- c(MI_mv2a_mod, list(mv2a_mod))
+MI_mv2a_coef <- c(MI_mv2a_coef, list(coef(mv2a_mod)))
+MI_mv2a_vcov <- c(MI_mv2a_vcov, list(vcov(mv2a_mod)))
+
 # Model 2a Trend p-value
-mv_mod_tmp <- update(mv2a_mod, .~. - educyou2 + as.numeric(educyou))
-summary(mv_mod_tmp)
-mv_mod_tmp <- update(mv2a_mod, .~. - bmicat + as.numeric(bmicat))
-summary(mv_mod_tmp)
-mv_mod_tmp <- update(mv2a_mod, .~. - exercise + as.numeric(exercise))
-summary(mv_mod_tmp)
-mv_mod_tmp <- update(mv2a_mod, .~. - sleephrs2 + as.numeric(sleephrs))
-summary(mv_mod_tmp)
-mv_mod_tmp <- update(mv2a_mod, .~. - egg_freq + as.numeric(egg_freq))
-summary(mv_mod_tmp)
-mv_mod_tmp <- update(mv2a_mod, .~. - meat_gram_ea_4 + as.numeric(meat_gram_ea_4))
-summary(mv_mod_tmp)
-mv_mod_tmp <- update(mv2a_mod, .~. - fish_gram_ea_4 + as.numeric(fish_gram_ea_4))
-summary(mv_mod_tmp)
-mv_mod_tmp <- update(mv2a_mod, .~. - dairy_gram_ea_4 + as.numeric(dairy_gram_ea_4))
-summary(mv_mod_tmp)
-mv_mod_tmp <- update(mv2a_mod, .~. - totalveg_gram_ea_4 + as.numeric(totalveg_gram_ea_4))
-summary(mv_mod_tmp)
-mv_mod_tmp <- update(mv2a_mod, .~. - fruits_gram_ea_4 + as.numeric(fruits_gram_ea_4))
-summary(mv_mod_tmp)
-mv_mod_tmp <- update(mv2a_mod, .~. - refgrains_gram_ea_4 + as.numeric(refgrains_gram_ea_4))
-summary(mv_mod_tmp)
-mv_mod_tmp <- update(mv2a_mod, .~. - whole_mixed_grains_gram_ea_4 + as.numeric(whole_mixed_grains_gram_ea_4))
-summary(mv_mod_tmp)
-mv_mod_tmp <- update(mv2a_mod, .~. - nutsseeds_gram_ea_4 + as.numeric(nutsseeds_gram_ea_4))
-summary(mv_mod_tmp)
-mv_mod_tmp <- update(mv2a_mod, .~. - legumes_gram_ea_4 + as.numeric(legumes_gram_ea_4))
-summary(mv_mod_tmp)
+MI5_mv2a_trend <- list(update(mv2a_mod, .~. - educyou2 + as.numeric(educyou)),
+                       update(mv2a_mod, .~. - bmicat + as.numeric(bmicat)),
+                       update(mv2a_mod, .~. - exercise + as.numeric(exercise)),
+                       update(mv2a_mod, .~. - sleephrs2 + as.numeric(sleephrs)),
+                       update(mv2a_mod, .~. - smokecat6 + as.numeric(smokecat6)),
+                       # update(mv2a_mod, .~. - egg_freq + as.numeric(egg_freq)),
+                       update(mv2a_mod, .~. - egg_freq + as.numeric(egg_freq)))
+                       # update(mv2a_mod, .~. - meat_gram_ea_4 + as.numeric(meat_gram_ea_4)),
+                       # update(mv2a_mod, .~. - fish_gram_ea_4 + as.numeric(fish_gram_ea_4)),
+                       # update(mv2a_mod, .~. - alldairy2_gram_ea_4 + as.numeric(alldairy2_gram_ea_4)),
+                       # update(mv2a_mod, .~. - totalveg_gram_ea_4 + as.numeric(totalveg_gram_ea_4)),
+                       # update(mv2a_mod, .~. - fruits_gram_ea_4 + as.numeric(fruits_gram_ea_4)),
+                       # update(mv2a_mod, .~. - refgrains_gram_ea_4 + as.numeric(refgrains_gram_ea_4)),
+                       # update(mv2a_mod, .~. - whole_mixed_grains_gram_ea_4 + as.numeric(whole_mixed_grains_gram_ea_4)),
+                       # update(mv2a_mod, .~. - nutsseeds_gram_ea_4 + as.numeric(nutsseeds_gram_ea_4)),
+                       # update(mv2a_mod, .~. - legumes_gram_ea_4 + as.numeric(legumes_gram_ea_4)))
 
 # Model 2b: Demog + Lifestyle + Comorbidity + Egg + Meat + Fish + Dairy
 mv2b_mod <- coxph(Surv(agein, ageout, inc_demen) ~ bene_sex_F + rti_race3 + marital + educyou2 +
@@ -1034,7 +1036,7 @@ summary(mv_mod_tmp)
 
 # Model 2c: Demog + Lifestyle + Comorbidity + Egg + Meat + Fish + Dairy
 mv2c_mod <- coxph(Surv(agein, ageout, inc_demen) ~ bene_sex_F + rti_race3 + marital + educyou2 +
-                    bmicat + exercise + sleephrs2 + smokecat + alccat + 
+                    bmicat + exercise + sleephrs2 + smokecat6 + alccat + 
                     # como_depress + como_disab + como_diabetes + como_cvd + como_hypert + como_hyperl + como_resp + 
                     como_cvd + como_hypert + como_hyperl + como_resp + 
                     como_anemia + como_kidney + como_hypoth + como_cancers +
@@ -1042,13 +1044,54 @@ mv2c_mod <- coxph(Surv(agein, ageout, inc_demen) ~ bene_sex_F + rti_race3 + mari
                     kcal100 + egg_freq +
                     # meat_gram_ea_4 + fish_gram_ea_4 + dairy_gram_ea_4, data = ahs_medic_inc2, method = "efron")
                     # meat_gram_ea_4 + fish_gram_ea_4 + dairy_gram_ea_4 +
-                    meat_gram_ea_4 + fish_gram_ea_4 + alldairy2_gram_ea_4 +
-                    totalveg_gram_ea_4 + fruits_gram_ea_4 + refgrains_gram_ea_4 + whole_mixed_grains_gram_ea_4 +
-                    nutsseeds_gram_ea_4 + legumes_gram_ea_4, data = ahs_medic_inc2, method = "efron")
+                    # meat_gram_ea_4 + fish_gram_ea_4 + alldairy2_gram_ea_4 +
+                    meat_gram_ea + fish_gram_ea + alldairy2_gram_ea +
+                    # totalveg_gram_ea_4 + fruits_gram_ea_4 + refgrains_gram_ea_4 + whole_mixed_grains_gram_ea_4 +
+                    totalveg_gram_ea + fruits_gram_ea + refgrains_gram_ea + whole_mixed_grains_gram_ea +
+                    # nutsseeds_gram_ea_4 + legumes_gram_ea_4, data = ahs_medic_inc2, method = "efron")
+                    nutsseeds_gram_ea + legumes_gram_ea, data = ahs_medic_inc2, method = "efron")
 
 mv2c_out  <- summary(mv2c_mod)
 mv2c_out2 <- cbind(mvHR = coef(mv2c_out)[, "exp(coef)"], exp(confint(mv2c_mod))) %>% round(2)
 
+# Keep for pooling MI results
+coef(mv2c_mod)
+vcov(mv2c_mod)
+
+MI_mv2c_mod  <- c(MI_mv2c_mod, list(mv2c_mod))
+MI_mv2c_coef <- c(MI_mv2c_coef, list(coef(mv2c_mod)))
+MI_mv2c_vcov <- c(MI_mv2c_vcov, list(vcov(mv2c_mod)))
+
+# Model 2c Trend p-value
+MI5_mv2c_trend <- list(update(mv2c_mod, .~. - educyou2 + as.numeric(educyou)),
+                       update(mv2c_mod, .~. - bmicat + as.numeric(bmicat)),
+                       update(mv2c_mod, .~. - exercise + as.numeric(exercise)),
+                       update(mv2c_mod, .~. - sleephrs2 + as.numeric(sleephrs)),
+                       update(mv2c_mod, .~. - smokecat6 + as.numeric(smokecat6)),
+                       # update(mv2c_mod, .~. - egg_freq + as.numeric(egg_freq)),
+                       update(mv2c_mod, .~. - egg_freq + as.numeric(egg_freq)))
+                       # update(mv2c_mod, .~. - meat_gram_ea_4 + as.numeric(meat_gram_ea_4)),
+                       # update(mv2c_mod, .~. - fish_gram_ea_4 + as.numeric(fish_gram_ea_4)),
+                       # update(mv2c_mod, .~. - alldairy2_gram_ea_4 + as.numeric(alldairy2_gram_ea_4)),
+                       # update(mv2c_mod, .~. - totalveg_gram_ea_4 + as.numeric(totalveg_gram_ea_4)),
+                       # update(mv2c_mod, .~. - fruits_gram_ea_4 + as.numeric(fruits_gram_ea_4)),
+                       # update(mv2c_mod, .~. - refgrains_gram_ea_4 + as.numeric(refgrains_gram_ea_4)),
+                       # update(mv2c_mod, .~. - whole_mixed_grains_gram_ea_4 + as.numeric(whole_mixed_grains_gram_ea_4)),
+                       # update(mv2c_mod, .~. - nutsseeds_gram_ea_4 + as.numeric(nutsseeds_gram_ea_4)),
+                       # update(mv2c_mod, .~. - legumes_gram_ea_4 + as.numeric(legumes_gram_ea_4)))
+
+# Model 3 with dietary group
+mv3_mod <- coxph(Surv(agein, ageout, inc_demen) ~ bene_sex_F + rti_race3 + marital + educyou2 +
+                    bmicat + exercise + sleephrs2 + smokecat6 + alccat + vegstat2 + 
+                    # como_depress + como_disab + como_diabetes + como_cvd + como_hypert + como_hyperl + como_resp + 
+                    como_cvd + como_hypert + como_hyperl + como_resp + 
+                    como_anemia + como_kidney + como_hypoth + como_cancers,
+                    data = ahs_medic_inc2, method = "efron")
+
+mv3_out  <- summary(mv3_mod)
+mv3_out2 <- cbind(mvHR = coef(mv3_out)[, "exp(coef)"], exp(confint(mv3_mod))) %>% round(2)
+
+MI_mv3_mod  <- c(MI_mv3_mod, list(mv3_mod))
 
 # Output to excel ---------------------------------------------------------
 
